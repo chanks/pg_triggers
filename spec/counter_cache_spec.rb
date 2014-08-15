@@ -16,7 +16,7 @@ describe PgTriggers, 'counter_cache' do
     end
   end
 
-  it "should increment and decrement the count of related items in the associated table as rows are inserted and deleted" do
+  it "should increment and decrement the count of related items in the associated table as rows are inserted and updated and deleted" do
     DB.run PgTriggers.counter_cache :counter_table, :counted_count, :counted_table, {id: :counter_id}
 
     DB[:counter_table].insert(id: 1)
@@ -31,12 +31,14 @@ describe PgTriggers, 'counter_cache' do
 
     DB[:counted_table].insert(id: 3, counter_id: 2)
     DB[:counter_table].where(id: 1).get(:counted_count).should == 2
+    DB[:counter_table].where(id: 2).get(:counted_count).should == 1
 
     DB[:counted_table].insert(id: 4, counter_id: 1)
     DB[:counter_table].where(id: 1).get(:counted_count).should == 3
 
-    DB[:counted_table].where(id: 4).delete.should == 1
+    DB[:counted_table].where(id: 4).update(counter_id: 2).should == 1
     DB[:counter_table].where(id: 1).get(:counted_count).should == 2
+    DB[:counter_table].where(id: 2).get(:counted_count).should == 2
 
     DB[:counted_table].where(counter_id: 1).delete.should == 2
     DB[:counter_table].where(id: 1).get(:counted_count).should == 0

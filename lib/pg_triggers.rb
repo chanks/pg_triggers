@@ -13,6 +13,10 @@ module PgTriggers
               IF (TG_OP = 'INSERT') THEN
                 UPDATE #{main_table} SET #{counter_column} = #{counter_column} + 1 WHERE #{where['NEW']};
                 RETURN NEW;
+              ELSIF (TG_OP = 'UPDATE') THEN
+                UPDATE #{main_table} SET #{counter_column} = #{counter_column} - 1 WHERE #{where['OLD']};
+                UPDATE #{main_table} SET #{counter_column} = #{counter_column} + 1 WHERE #{where['NEW']};
+                RETURN NEW;
               ELSIF (TG_OP = 'DELETE') THEN
                 UPDATE #{main_table} SET #{counter_column} = #{counter_column} - 1 WHERE #{where['OLD']};
                 RETURN OLD;
