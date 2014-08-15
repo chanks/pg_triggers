@@ -126,4 +126,57 @@ describe PgTriggers, 'counter_cache' do
     DB[:counted_table].insert(id: 6, counter_id1: nil, counter_id2: nil)
     DB[:counter_table].where(id1: 1, id2: 1).get([:counted1_count, :counted2_count]).should == [3, 0]
   end
+
+  it "should accept a :where clause to filter the rows that are counted" do
+    DB.create_table :counter_table do
+      integer :id, null: false
+
+      integer :condition_count,       null: false, default: 0
+      integer :value_count,           null: false, default: 0
+      integer :condition_value_count, null: false, default: 0
+    end
+
+    DB.create_table :counted_table do
+      integer :id, null: false
+      integer :counter_id, null: false
+
+      boolean :condition
+      integer :value
+    end
+
+    DB.run PgTriggers.counter_cache :counter_table, :condition_count,       :counted_table, {id: :counter_id}, where: "ROW.condition"
+    DB.run PgTriggers.counter_cache :counter_table, :value_count,           :counted_table, {id: :counter_id}, where: "ROW.value > 5"
+    DB.run PgTriggers.counter_cache :counter_table, :condition_value_count, :counted_table, {id: :counter_id}, where: "ROW.condition AND ROW.value > 5"
+
+    def values
+      DB[:counter_table].where(id: 1).get([:condition_count, :value_count, :condition_value_count])
+    end
+
+    DB[:counter_table].insert(id: 1)
+
+    values.should == [0, 0, 0]
+    DB[:counted_table].insert(id: 1, counter_id: 1, condition: true,  value: 4)
+    values.should == [1, 0, 0]
+    DB[:counted_table].insert(id: 2, counter_id: 1, condition: false, value: 4)
+    values.should == [1, 0, 0]
+    DB[:counted_table].insert(id: 3, counter_id: 1, condition: true,  value: 6)
+    values.should == [2, 1, 1]
+    DB[:counted_table].insert(id: 4, counter_id: 1, condition: false, value: 6)
+    values.should == [2, 2, 1]
+    DB[:counted_table].insert(id: 5, counter_id: 1, condition: nil,   value: 4)
+    values.should == [2, 2, 1]
+    DB[:counted_table].insert(id: 6, counter_id: 1, condition: false, value: nil)
+    values.should == [2, 2, 1]
+    DB[:counted_table].insert(id: 7, counter_id: 1, condition: true,  value: nil)
+    values.should == [3, 2, 1]
+    DB[:counted_table].insert(id: 8, counter_id: 1, condition: nil,   value: 6)
+    values.should == [3, 3, 1]
+
+    DB[:counted_table].where(id: 3).update(counter_id: 2).should == 1
+    values.should == [2, 2, 0]
+    DB[:counted_table].where(id: [4, 7]).delete.should == 2
+    values.should == [1, 1, 0]
+    DB[:counted_table].where(id: 3).update(counter_id: 1).should == 1
+    values.should == [2, 2, 1]
+  end
 end
