@@ -178,5 +178,7 @@ describe PgTriggers, 'counter_cache' do
     values.should == [1, 1, 0]
     DB[:counted_table].where(id: 3).update(counter_id: 1).should == 1
     values.should == [2, 2, 1]
+    DB[:counted_table].where(id: 1).update(value: 6).should == 1
+    values.should == [2, 3, 2]
   end
 end
