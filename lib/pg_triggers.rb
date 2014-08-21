@@ -5,7 +5,7 @@ module PgTriggers
     def counter_cache(main_table, counter_column, counted_table, relationship, options = {})
       where   = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
       columns = relationship.values
-      changed = columns.map{|c| "(OLD.#{c} <> NEW.#{c} OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
+      changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
 
       condition = proc do |source|
         a = []
