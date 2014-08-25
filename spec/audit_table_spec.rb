@@ -24,7 +24,7 @@ describe PgTriggers, 'auditing' do
       end
     end
 
-    it "should record old versions of rows when they are updated and deleted" do
+    it "should record old versions of rows when they are updated" do
       DB.run PgTriggers.audit_table(:audited_table)
 
       id = DB[:audited_table].insert
@@ -57,7 +57,11 @@ describe PgTriggers, 'auditing' do
       JSON.parse(r4[:changes]).should == {'item_count' => 1}
     end
 
+    it "should always record the values of columns in the :include set"
+
     it "should not record UPDATEs when the only changed columns fall within the :ignore set"
+
+    it "should record the entirety of the row when it is deleted"
 
     it "should seamlessly replace an existing audit trigger on the same table"
   end
