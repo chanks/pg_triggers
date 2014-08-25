@@ -39,22 +39,22 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r1[:data]).should == {'id' => 1, 'description' => nil, 'item_count' => 0}
+      JSON.parse(r1[:changes]).should == {'id' => 1, 'description' => nil, 'item_count' => 0}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r2[:data]).should == {'id' => 1, 'description' => nil, 'item_count' => 1}
+      JSON.parse(r2[:changes]).should == {'id' => 1, 'description' => nil, 'item_count' => 1}
 
       r3[:id].should == 3
       r3[:table_name].should == 'audited_table'
       r3[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r3[:data]).should == {'id' => 1, 'description' => 'blah', 'item_count' => 1}
+      JSON.parse(r3[:changes]).should == {'id' => 1, 'description' => 'blah', 'item_count' => 1}
 
       r4[:id].should == 4
       r4[:table_name].should == 'audited_table'
       r4[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r4[:data]).should == {'id' => 1, 'description' => nil, 'item_count' => 1}
+      JSON.parse(r4[:changes]).should == {'id' => 1, 'description' => nil, 'item_count' => 1}
     end
 
     it "should not record UPDATEs when the only changed columns fall within the :ignore set"

@@ -57,7 +57,7 @@ module PgTriggers
           id bigserial PRIMARY KEY,
           table_name text NOT NULL,
           changed_at timestamptz NOT NULL DEFAULT now(),
-          data json NOT NULL
+          changes json NOT NULL
         );
       SQL
     end
@@ -67,7 +67,7 @@ module PgTriggers
         CREATE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
         AS $body$
           BEGIN
-            INSERT INTO audit_table(table_name, data)
+            INSERT INTO audit_table(table_name, changes)
               VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD));
             RETURN OLD;
           END
