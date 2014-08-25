@@ -67,7 +67,7 @@ module PgTriggers
       ignore = options[:ignore].map{|a| "'#{a}'"}.join(', ') if options[:ignore]
 
       <<-SQL
-        CREATE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
+        CREATE OR REPLACE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
         AS $body$
           DECLARE
             changed_keys text[];
@@ -99,6 +99,8 @@ module PgTriggers
           END
         $body$
         LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS pg_triggers_audit_#{table_name} ON #{table_name};
 
         CREATE TRIGGER pg_triggers_audit_#{table_name}
         AFTER UPDATE OR DELETE ON #{table_name}

@@ -168,7 +168,19 @@ describe PgTriggers, 'auditing' do
       JSON.parse(record[:changes]).should == {'id' => 1, 'description' => 'Go home and get your shinebox!', 'item_count' => 5}
     end
 
-    it "should seamlessly replace an existing audit trigger on the same table"
+    it "should seamlessly replace an existing audit trigger on the same table" do
+      id = DB[:audited_table].insert description: 'Go home and get your shinebox!', item_count: 5
+
+      DB.run PgTriggers.audit_table(:audited_table)
+      DB[:audited_table].where(id: id).update(item_count: 6)
+      DB[:audit_table].count.should == 1
+
+      DB.run PgTriggers.audit_table(:audited_table, ignore: [:item_count])
+      DB[:audited_table].where(id: id).update(item_count: 7)
+      DB[:audit_table].count.should == 1
+      DB[:audited_table].where(id: id).update(description: 'blah')
+      DB[:audit_table].count.should == 2
+    end
 
     it "should properly handle rows of type JSON"
   end
