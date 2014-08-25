@@ -66,9 +66,18 @@ module PgTriggers
       <<-SQL
         CREATE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
         AS $body$
+          DECLARE
+            changes json;
           BEGIN
-            INSERT INTO audit_table(table_name, changes)
-              VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD));
+            SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
+            FROM (
+              SELECT o.key, o.value
+              FROM json_each(row_to_json(OLD)) o
+              JOIN json_each(row_to_json(NEW)) n ON o.key = n.key
+              WHERE o.value::text <> n.value::text
+            ) s;
+
+            INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
             RETURN OLD;
           END
         $body$
