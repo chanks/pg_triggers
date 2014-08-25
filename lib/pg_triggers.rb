@@ -62,7 +62,9 @@ module PgTriggers
       SQL
     end
 
-    def audit_table(table_name)
+    def audit_table(table_name, options = {})
+      incl = options[:include].map{|a| "'#{a}'"}.join(', ') if options[:include]
+
       <<-SQL
         CREATE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
         AS $body$
@@ -76,6 +78,7 @@ module PgTriggers
                 FROM json_each(row_to_json(OLD)) o
                 JOIN json_each(row_to_json(NEW)) n ON o.key = n.key
                 WHERE o.value::text <> n.value::text
+                #{"OR o.key IN (#{incl})" if incl}
               ) s;
 
               INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);

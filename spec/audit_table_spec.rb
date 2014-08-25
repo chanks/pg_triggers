@@ -57,7 +57,26 @@ describe PgTriggers, 'auditing' do
       JSON.parse(r4[:changes]).should == {'item_count' => 1}
     end
 
-    it "should always record the values of columns in the :include set"
+    it "should always record the values of columns in the :always set" do
+      DB.run PgTriggers.audit_table(:audited_table, include: [:id, :item_count])
+
+      id = DB[:audited_table].insert
+      DB[:audited_table].where(id: id).update item_count: 1
+      DB[:audited_table].where(id: id).update description: 'blah'
+
+      DB[:audit_table].count.should == 2
+      r1, r2 = DB[:audit_table].order(:id).all
+
+      r1[:id].should == 1
+      r1[:table_name].should == 'audited_table'
+      r1[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r1[:changes]).should == {'id' => 1, 'item_count' => 0}
+
+      r2[:id].should == 2
+      r2[:table_name].should == 'audited_table'
+      r2[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r2[:changes]).should == {'id' => 1, 'item_count' => 1, 'description' => nil}
+    end
 
     it "should not record UPDATEs when the only changed columns fall within the :ignore set"
 
