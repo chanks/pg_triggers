@@ -182,6 +182,39 @@ describe PgTriggers, 'auditing' do
       DB[:audit_table].count.should == 2
     end
 
-    it "should properly handle rows of type JSON"
+    it "should properly handle rows of type JSON" do
+      DB.alter_table :audited_table do
+        add_column :data, :json, null: false, default: '{}'
+      end
+
+      id = DB[:audited_table].insert data: '{}'
+
+      DB.run PgTriggers.audit_table(:audited_table)
+      DB[:audited_table].where(id: id).update(data: '{"a":1}')
+      DB[:audited_table].where(id: id).update(data: '{"a":1,"b":2}')
+      DB[:audited_table].where(id: id).update(data: '{"a":1,"b":2}')
+      DB[:audited_table].where(id: id).update(data: '{"a":2,"b":2}')
+
+      DB.run PgTriggers.audit_table(:audited_table, ignore: [:data])
+      DB[:audited_table].where(id: id).update(data: '{"a":8}')
+
+      DB[:audit_table].count.should == 3
+      r1, r2, r3 = DB[:audit_table].all
+
+      r1[:id].should == 1
+      r1[:table_name].should == 'audited_table'
+      r1[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r1[:changes]).should == {'data' => {}}
+
+      r2[:id].should == 2
+      r2[:table_name].should == 'audited_table'
+      r2[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r2[:changes]).should == {'data' => {'a' => 1}}
+
+      r3[:id].should == 3
+      r3[:table_name].should == 'audited_table'
+      r3[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r3[:changes]).should == {'data' => {'a' => 1, 'b' => 2}}
+    end
   end
 end
