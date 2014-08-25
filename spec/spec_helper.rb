@@ -1,5 +1,6 @@
 require 'sequel'
 require 'pg_triggers'
+require 'pry'
 
 url = ENV['PG_TRIGGERS_URL'] || 'postgres:///pg_triggers'
 
