@@ -50,5 +50,34 @@ module PgTriggers
         FOR EACH ROW EXECUTE PROCEDURE pg_triggers_counter_#{main_table}_#{counter_column}();
       SQL
     end
+
+    def create_audit_table
+      <<-SQL
+        CREATE TABLE audit_table(
+          id bigserial PRIMARY KEY,
+          table_name text NOT NULL,
+          changed_at timestamptz NOT NULL DEFAULT now(),
+          data json NOT NULL
+        );
+      SQL
+    end
+
+    def audit_table(table_name)
+      <<-SQL
+        CREATE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
+        AS $body$
+          BEGIN
+            INSERT INTO audit_table(table_name, data)
+              VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD));
+            RETURN OLD;
+          END
+        $body$
+        LANGUAGE plpgsql;
+
+        CREATE TRIGGER pg_triggers_audit_#{table_name}
+        AFTER UPDATE OR DELETE ON #{table_name}
+        FOR EACH ROW EXECUTE PROCEDURE pg_triggers_audit_#{table_name}();
+      SQL
+    end
   end
 end
