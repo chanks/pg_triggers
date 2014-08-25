@@ -132,6 +132,28 @@ describe PgTriggers, 'auditing' do
       DB[:audit_table].count.should == 0
     end
 
+    it "should not include changed columns if they are ignored" do
+      DB.run PgTriggers.audit_table(:audited_table, ignore: [:item_count])
+
+      id = DB[:audited_table].insert
+      DB[:audited_table].where(id: id).update description: 'blah', item_count: 1
+      DB[:audited_table].where(id: id).update description: 'blah', item_count: 2
+      DB[:audited_table].where(id: id).update description: nil, item_count: 3
+
+      DB[:audit_table].count.should == 2
+      r1, r2 = DB[:audit_table].order(:id).all
+
+      r1[:id].should == 1
+      r1[:table_name].should == 'audited_table'
+      r1[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r1[:changes]).should == {'description' => nil}
+
+      r2[:id].should == 2
+      r2[:table_name].should == 'audited_table'
+      r2[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r2[:changes]).should == {'description' => 'blah'}
+    end
+
     it "should record the entirety of the row when it is deleted" do
       DB.run PgTriggers.audit_table(:audited_table)
 

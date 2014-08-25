@@ -82,7 +82,10 @@ module PgTriggers
               IF NOT (ARRAY[#{ignore}]::text[] @> changed_keys) THEN
                 SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
                 FROM json_each(row_to_json(OLD))
-                WHERE key = ANY(changed_keys)
+                WHERE (
+                  key = ANY(changed_keys)
+                  #{"AND key NOT IN (#{ignore})" if ignore}
+                )
                 #{"OR key IN (#{incl})" if incl};
 
                 INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
