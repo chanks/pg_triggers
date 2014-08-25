@@ -64,24 +64,30 @@ module PgTriggers
 
     def audit_table(table_name, options = {})
       incl = options[:include].map{|a| "'#{a}'"}.join(', ') if options[:include]
+      ignore = options[:ignore].map{|a| "'#{a}'"}.join(', ') if options[:ignore]
 
       <<-SQL
         CREATE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
         AS $body$
           DECLARE
+            changed_keys text[];
             changes json;
           BEGIN
             IF (TG_OP = 'UPDATE') THEN
-              SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
-              FROM (
-                SELECT o.key, o.value
-                FROM json_each(row_to_json(OLD)) o
-                JOIN json_each(row_to_json(NEW)) n ON o.key = n.key
-                WHERE o.value::text <> n.value::text
-                #{"OR o.key IN (#{incl})" if incl}
-              ) s;
+              SELECT array_agg(o.key) INTO changed_keys
+              FROM json_each(row_to_json(OLD)) o
+              JOIN json_each(row_to_json(NEW)) n ON o.key = n.key
+              WHERE o.value::text <> n.value::text;
 
-              INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
+              IF NOT (ARRAY[#{ignore}]::text[] @> changed_keys) THEN
+                SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
+                FROM json_each(row_to_json(OLD))
+                WHERE key = ANY(changed_keys)
+                #{"OR key IN (#{incl})" if incl};
+
+                INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
+              END IF;
+
               RETURN OLD;
             ELSIF (TG_OP = 'DELETE') THEN
               INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD));

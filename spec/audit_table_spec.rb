@@ -78,7 +78,59 @@ describe PgTriggers, 'auditing' do
       JSON.parse(r2[:changes]).should == {'id' => 1, 'item_count' => 1, 'description' => nil}
     end
 
-    it "should not record UPDATEs when the only changed columns fall within the :ignore set"
+    it "should not record UPDATEs when the only changed columns fall within the :ignore set" do
+      DB.run PgTriggers.audit_table(:audited_table, ignore: [:item_count])
+
+      id = DB[:audited_table].insert
+      DB[:audited_table].where(id: id).update item_count: 1
+      DB[:audited_table].where(id: id).update description: 'blah'
+      DB[:audited_table].where(id: id).update description: nil
+      DB[:audited_table].where(id: id).update item_count: 2
+
+      DB[:audit_table].count.should == 2
+      r1, r2 = DB[:audit_table].order(:id).all
+
+      r1[:id].should == 1
+      r1[:table_name].should == 'audited_table'
+      r1[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r1[:changes]).should == {'description' => nil}
+
+      r2[:id].should == 2
+      r2[:table_name].should == 'audited_table'
+      r2[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r2[:changes]).should == {'description' => 'blah'}
+    end
+
+    it "should handle columns being in both the :include and :ignore sets properly" do
+      DB.run PgTriggers.audit_table(:audited_table, include: [:item_count], ignore: [:item_count])
+
+      id = DB[:audited_table].insert
+      DB[:audited_table].where(id: id).update item_count: 1
+      DB[:audited_table].where(id: id).update description: 'blah'
+      DB[:audited_table].where(id: id).update description: nil
+      DB[:audited_table].where(id: id).update item_count: 2
+
+      DB[:audit_table].count.should == 2
+      r1, r2 = DB[:audit_table].order(:id).all
+
+      r1[:id].should == 1
+      r1[:table_name].should == 'audited_table'
+      r1[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r1[:changes]).should == {'description' => nil, 'item_count' => 1}
+
+      r2[:id].should == 2
+      r2[:table_name].should == 'audited_table'
+      r2[:changed_at].should be_within(3).of Time.now
+      JSON.parse(r2[:changes]).should == {'description' => 'blah', 'item_count' => 1}
+    end
+
+    it "should ignore records that are not changed at all" do
+      DB.run PgTriggers.audit_table(:audited_table)
+
+      id = DB[:audited_table].insert
+      DB[:audited_table].where(id: id).update item_count: 0
+      DB[:audit_table].count.should == 0
+    end
 
     it "should record the entirety of the row when it is deleted" do
       DB.run PgTriggers.audit_table(:audited_table)
