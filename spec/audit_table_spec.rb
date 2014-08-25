@@ -76,5 +76,7 @@ describe PgTriggers, 'auditing' do
     end
 
     it "should seamlessly replace an existing audit trigger on the same table"
+
+    it "should properly handle rows of type JSON"
   end
 end
