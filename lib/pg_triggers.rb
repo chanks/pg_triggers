@@ -69,16 +69,21 @@ module PgTriggers
           DECLARE
             changes json;
           BEGIN
-            SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
-            FROM (
-              SELECT o.key, o.value
-              FROM json_each(row_to_json(OLD)) o
-              JOIN json_each(row_to_json(NEW)) n ON o.key = n.key
-              WHERE o.value::text <> n.value::text
-            ) s;
+            IF (TG_OP = 'UPDATE') THEN
+              SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
+              FROM (
+                SELECT o.key, o.value
+                FROM json_each(row_to_json(OLD)) o
+                JOIN json_each(row_to_json(NEW)) n ON o.key = n.key
+                WHERE o.value::text <> n.value::text
+              ) s;
 
-            INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
-            RETURN OLD;
+              INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
+              RETURN OLD;
+            ELSIF (TG_OP = 'DELETE') THEN
+              INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD));
+              RETURN OLD;
+            END IF;
           END
         $body$
         LANGUAGE plpgsql;

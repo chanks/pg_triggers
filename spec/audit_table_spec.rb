@@ -61,7 +61,19 @@ describe PgTriggers, 'auditing' do
 
     it "should not record UPDATEs when the only changed columns fall within the :ignore set"
 
-    it "should record the entirety of the row when it is deleted"
+    it "should record the entirety of the row when it is deleted" do
+      DB.run PgTriggers.audit_table(:audited_table)
+
+      id = DB[:audited_table].insert description: 'Go home and get your shinebox!', item_count: 5
+      DB[:audited_table].where(id: id).delete.should == 1
+
+      DB[:audit_table].count.should == 1
+      record = DB[:audit_table].first
+      record[:id].should == 1
+      record[:table_name].should == 'audited_table'
+      record[:changed_at].should be_within(3).of Time.now
+      JSON.parse(record[:changes]).should == {'id' => 1, 'description' => 'Go home and get your shinebox!', 'item_count' => 5}
+    end
 
     it "should seamlessly replace an existing audit trigger on the same table"
   end
