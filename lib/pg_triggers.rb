@@ -32,8 +32,6 @@ module PgTriggers
                   IF (#{condition['NEW']}) THEN
                     UPDATE #{main_table} SET #{counter_column} = #{counter_column} + 1 WHERE #{where['NEW']};
                   END IF;
-                ELSE
-
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'DELETE') THEN
