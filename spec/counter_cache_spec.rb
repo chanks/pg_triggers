@@ -181,4 +181,47 @@ describe PgTriggers, 'counter_cache' do
     DB[:counted_table].where(id: 1).update(value: 6).should == 1
     values.should == [2, 3, 2]
   end
+
+  it "should silently replace another counter cache trigger on the same set of columns" do
+    DB.create_table :counter_table do
+      integer :id, null: false
+
+      integer :condition_count,       null: false, default: 0
+    end
+
+    DB.create_table :counted_table do
+      integer :id, null: false
+      integer :counter_id, null: false
+
+      boolean :condition
+    end
+
+    def value
+      DB[:counter_table].where(id: 1).get(:condition_count)
+    end
+
+    DB.run PgTriggers.counter_cache :counter_table, :condition_count, :counted_table, {id: :counter_id}
+
+    DB[:counter_table].insert(id: 1)
+
+    DB[:counted_table].insert(id: 1, counter_id: 1, condition: true)
+    value.should == 1
+    DB[:counted_table].insert(id: 2, counter_id: 1, condition: false)
+    value.should == 2
+    DB[:counted_table].insert(id: 3, counter_id: 1, condition: true)
+    value.should == 3
+    DB[:counted_table].insert(id: 4, counter_id: 1, condition: false)
+    value.should == 4
+
+    DB.run PgTriggers.counter_cache :counter_table, :condition_count, :counted_table, {id: :counter_id}, where: "ROW.condition"
+
+    DB[:counted_table].insert(id: 5, counter_id: 1, condition: nil)
+    value.should == 4
+    DB[:counted_table].insert(id: 6, counter_id: 1, condition: false)
+    value.should == 4
+    DB[:counted_table].insert(id: 7, counter_id: 1, condition: true)
+    value.should == 5
+    DB[:counted_table].insert(id: 8, counter_id: 1, condition: nil)
+    value.should == 5
+  end
 end

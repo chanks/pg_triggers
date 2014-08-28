@@ -15,7 +15,7 @@ module PgTriggers
       end
 
       <<-SQL
-        CREATE FUNCTION pg_triggers_counter_#{main_table}_#{counter_column}() RETURNS trigger
+        CREATE OR REPLACE FUNCTION pg_triggers_counter_#{main_table}_#{counter_column}() RETURNS trigger
           LANGUAGE plpgsql
           AS $$
             BEGIN
@@ -42,6 +42,8 @@ module PgTriggers
               END IF;
             END;
           $$;
+
+        DROP TRIGGER IF EXISTS pg_triggers_counter_#{main_table}_#{counter_column} ON #{counted_table};
 
         CREATE TRIGGER pg_triggers_counter_#{main_table}_#{counter_column}
         AFTER INSERT OR UPDATE OR DELETE ON #{counted_table}
