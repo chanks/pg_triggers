@@ -6,6 +6,7 @@ module PgTriggers
       where   = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
       columns = relationship.values
       changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
+      value   = (options[:value] || 1).to_i
 
       condition = proc do |source|
         a = []
@@ -21,22 +22,22 @@ module PgTriggers
             BEGIN
               IF (TG_OP = 'INSERT') THEN
                 IF (#{condition['NEW']}) THEN
-                  UPDATE #{main_table} SET #{counter_column} = #{counter_column} + 1 WHERE #{where['NEW']};
+                  UPDATE #{main_table} SET #{counter_column} = #{counter_column} + #{value} WHERE #{where['NEW']};
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'UPDATE') THEN
                 IF (#{changed}) OR ((#{condition['OLD']}) <> (#{condition['NEW']})) THEN
                   IF (#{condition['OLD']}) THEN
-                    UPDATE #{main_table} SET #{counter_column} = #{counter_column} - 1 WHERE #{where['OLD']};
+                    UPDATE #{main_table} SET #{counter_column} = #{counter_column} - #{value} WHERE #{where['OLD']};
                   END IF;
                   IF (#{condition['NEW']}) THEN
-                    UPDATE #{main_table} SET #{counter_column} = #{counter_column} + 1 WHERE #{where['NEW']};
+                    UPDATE #{main_table} SET #{counter_column} = #{counter_column} + #{value} WHERE #{where['NEW']};
                   END IF;
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'DELETE') THEN
                 IF (#{condition['OLD']}) THEN
-                  UPDATE #{main_table} SET #{counter_column} = #{counter_column} - 1 WHERE #{where['OLD']};
+                  UPDATE #{main_table} SET #{counter_column} = #{counter_column} - #{value} WHERE #{where['OLD']};
                 END IF;
                 RETURN OLD;
               END IF;

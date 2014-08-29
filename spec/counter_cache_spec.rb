@@ -224,4 +224,30 @@ describe PgTriggers, 'counter_cache' do
     DB[:counted_table].insert(id: 8, counter_id: 1, condition: nil)
     value.should == 5
   end
+
+  it "should support a custom value to increment and decrement the count by" do
+    DB.create_table :counter_table do
+      integer :id, null: false
+      integer :counted_count, null: false, default: 0
+    end
+
+    DB.create_table :counted_table do
+      integer :id, null: false
+      integer :counter_id, null: false
+    end
+
+    DB.run PgTriggers.counter_cache :counter_table, :counted_count, :counted_table, {id: :counter_id}, value: 5
+
+    DB[:counter_table].insert(id: 1)
+    DB[:counter_table].where(id: 1).get(:counted_count).should == 0
+
+    DB[:counted_table].insert(id: 1, counter_id: 1)
+    DB[:counter_table].where(id: 1).get(:counted_count).should == 5
+
+    DB[:counted_table].insert(id: 2, counter_id: 1)
+    DB[:counter_table].where(id: 1).get(:counted_count).should == 10
+
+    DB[:counted_table].where(id: 1).delete.should == 1
+    DB[:counter_table].where(id: 1).get(:counted_count).should == 5
+  end
 end
