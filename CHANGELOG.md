@@ -2,6 +2,8 @@
 
 *   Add :value option to counter_cache to support incrementing/decrementing counters by a specific amount.
 
+*   Add updated_at trigger to track update times, while still allowing its values to be overridden for testing purposes.
+
 ### 0.1.0 (2014-08-25)
 
 *   Add audit_table trigger to track changes to a table.
