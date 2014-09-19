@@ -16,7 +16,7 @@ module PgTriggers
       end
 
       <<-SQL
-        CREATE OR REPLACE FUNCTION pg_triggers_counter_#{main_table}_#{counter_column}() RETURNS trigger
+        CREATE OR REPLACE FUNCTION pt_cc_#{main_table}_#{counter_column}() RETURNS trigger
           LANGUAGE plpgsql
           AS $$
             BEGIN
@@ -44,17 +44,17 @@ module PgTriggers
             END;
           $$;
 
-        DROP TRIGGER IF EXISTS pg_triggers_counter_#{main_table}_#{counter_column} ON #{counted_table};
+        DROP TRIGGER IF EXISTS pt_cc_#{main_table}_#{counter_column} ON #{counted_table};
 
-        CREATE TRIGGER pg_triggers_counter_#{main_table}_#{counter_column}
+        CREATE TRIGGER pt_cc_#{main_table}_#{counter_column}
         AFTER INSERT OR UPDATE OR DELETE ON #{counted_table}
-        FOR EACH ROW EXECUTE PROCEDURE pg_triggers_counter_#{main_table}_#{counter_column}();
+        FOR EACH ROW EXECUTE PROCEDURE pt_cc_#{main_table}_#{counter_column}();
       SQL
     end
 
     def updated_at(table, column)
       <<-SQL
-        CREATE OR REPLACE FUNCTION pg_triggers_updated_at_#{table}_#{column}() RETURNS trigger
+        CREATE OR REPLACE FUNCTION pt_u_#{table}_#{column}() RETURNS trigger
           LANGUAGE plpgsql
           AS $$
             BEGIN
@@ -72,11 +72,11 @@ module PgTriggers
             END;
           $$;
 
-        DROP TRIGGER IF EXISTS pg_triggers_updated_at_#{table}_#{column} ON #{table};
+        DROP TRIGGER IF EXISTS pt_u_#{table}_#{column} ON #{table};
 
-        CREATE TRIGGER pg_triggers_updated_at_#{table}_#{column}
+        CREATE TRIGGER pt_u_#{table}_#{column}
         BEFORE INSERT OR UPDATE ON #{table}
-        FOR EACH ROW EXECUTE PROCEDURE pg_triggers_updated_at_#{table}_#{column}();
+        FOR EACH ROW EXECUTE PROCEDURE pt_u_#{table}_#{column}();
       SQL
     end
 
@@ -96,7 +96,7 @@ module PgTriggers
       ignore = options[:ignore].map{|a| "'#{a}'"}.join(', ') if options[:ignore]
 
       <<-SQL
-        CREATE OR REPLACE FUNCTION pg_triggers_audit_#{table_name}() RETURNS TRIGGER
+        CREATE OR REPLACE FUNCTION pt_a_#{table_name}() RETURNS TRIGGER
         AS $body$
           DECLARE
             changed_keys text[];
@@ -129,11 +129,11 @@ module PgTriggers
         $body$
         LANGUAGE plpgsql;
 
-        DROP TRIGGER IF EXISTS pg_triggers_audit_#{table_name} ON #{table_name};
+        DROP TRIGGER IF EXISTS pt_a_#{table_name} ON #{table_name};
 
-        CREATE TRIGGER pg_triggers_audit_#{table_name}
+        CREATE TRIGGER pt_a_#{table_name}
         AFTER UPDATE OR DELETE ON #{table_name}
-        FOR EACH ROW EXECUTE PROCEDURE pg_triggers_audit_#{table_name}();
+        FOR EACH ROW EXECUTE PROCEDURE pt_a_#{table_name}();
       SQL
     end
   end
