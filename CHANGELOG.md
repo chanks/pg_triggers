@@ -1,4 +1,4 @@
-### Unreleased
+### 0.2.0 (2014-09-19)
 
 *   Add :value option to counter_cache to support incrementing/decrementing counters by a specific amount.
 
