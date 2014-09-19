@@ -52,6 +52,34 @@ module PgTriggers
       SQL
     end
 
+    def updated_at(table, column)
+      <<-SQL
+        CREATE OR REPLACE FUNCTION pg_triggers_updated_at_#{table}_#{column}() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+            BEGIN
+              IF (TG_OP = 'INSERT') THEN
+                IF NEW.updated_at IS NULL THEN
+                  NEW.updated_at := CURRENT_TIMESTAMP;
+                END IF;
+              ELSIF (TG_OP = 'UPDATE') THEN
+                IF NEW.updated_at = OLD.updated_at THEN
+                  NEW.updated_at := CURRENT_TIMESTAMP;
+                END IF;
+              END IF;
+
+              RETURN NEW;
+            END;
+          $$;
+
+        DROP TRIGGER IF EXISTS pg_triggers_updated_at_#{table}_#{column} ON #{table};
+
+        CREATE TRIGGER pg_triggers_updated_at_#{table}_#{column}
+        BEFORE INSERT OR UPDATE ON #{table}
+        FOR EACH ROW EXECUTE PROCEDURE pg_triggers_updated_at_#{table}_#{column}();
+      SQL
+    end
+
     def create_audit_table
       <<-SQL
         CREATE TABLE audit_table(
