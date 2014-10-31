@@ -7,6 +7,7 @@ module PgTriggers
       columns = relationship.values
       changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
       value   = (options[:value] || 1).to_i
+      name    = options[:name] || "pt_cc_#{main_table}_#{counter_column}"
 
       condition = proc do |source|
         a = []
@@ -16,7 +17,7 @@ module PgTriggers
       end
 
       <<-SQL
-        CREATE OR REPLACE FUNCTION pt_cc_#{main_table}_#{counter_column}() RETURNS trigger
+        CREATE OR REPLACE FUNCTION #{name}() RETURNS trigger
           LANGUAGE plpgsql
           AS $$
             BEGIN
@@ -44,11 +45,11 @@ module PgTriggers
             END;
           $$;
 
-        DROP TRIGGER IF EXISTS pt_cc_#{main_table}_#{counter_column} ON #{counted_table};
+        DROP TRIGGER IF EXISTS #{name} ON #{counted_table};
 
-        CREATE TRIGGER pt_cc_#{main_table}_#{counter_column}
+        CREATE TRIGGER #{name}
         AFTER INSERT OR UPDATE OR DELETE ON #{counted_table}
-        FOR EACH ROW EXECUTE PROCEDURE pt_cc_#{main_table}_#{counter_column}();
+        FOR EACH ROW EXECUTE PROCEDURE #{name}();
       SQL
     end
 
