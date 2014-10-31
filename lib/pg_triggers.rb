@@ -53,6 +53,57 @@ module PgTriggers
       SQL
     end
 
+    def sum_cache(main_table, sum_column, summed_table, summed_column, relationship, options = {})
+      where      = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
+      columns    = relationship.values
+      changed    = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
+      multiplier = (options[:multiplier] || 1).to_i
+      name       = options[:name] || "pt_sc_#{main_table}_#{sum_column}"
+
+      condition = proc do |source|
+        a = []
+        a << columns.map{|c| "#{source}.#{c} IS NOT NULL"}.join(' AND ')
+        a << options[:where].gsub('ROW.', "#{source}.") if options[:where]
+        a.join(' AND ')
+      end
+
+      <<-SQL
+        CREATE OR REPLACE FUNCTION #{name}() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+            BEGIN
+              IF (TG_OP = 'INSERT') THEN
+                IF (#{condition['NEW']}) THEN
+                  UPDATE #{main_table} SET #{sum_column} = #{sum_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{where['NEW']};
+                END IF;
+                RETURN NEW;
+              ELSIF (TG_OP = 'UPDATE') THEN
+                IF (#{changed}) OR ((#{condition['OLD']}) <> (#{condition['NEW']})) OR (OLD.#{summed_column} <> NEW.#{summed_column}) THEN
+                  IF (#{condition['OLD']}) THEN
+                    UPDATE #{main_table} SET #{sum_column} = #{sum_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{where['OLD']};
+                  END IF;
+                  IF (#{condition['NEW']}) THEN
+                    UPDATE #{main_table} SET #{sum_column} = #{sum_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{where['NEW']};
+                  END IF;
+                END IF;
+                RETURN NEW;
+              ELSIF (TG_OP = 'DELETE') THEN
+                IF (#{condition['OLD']}) THEN
+                  UPDATE #{main_table} SET #{sum_column} = #{sum_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{where['OLD']};
+                END IF;
+                RETURN OLD;
+              END IF;
+            END;
+          $$;
+
+        DROP TRIGGER IF EXISTS #{name} ON #{summed_table};
+
+        CREATE TRIGGER #{name}
+        AFTER INSERT OR UPDATE OR DELETE ON #{summed_table}
+        FOR EACH ROW EXECUTE PROCEDURE #{name}();
+      SQL
+    end
+
     def updated_at(table, column)
       <<-SQL
         CREATE OR REPLACE FUNCTION pt_u_#{table}_#{column}() RETURNS trigger
