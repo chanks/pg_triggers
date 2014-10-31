@@ -1,3 +1,7 @@
+### 0.2.1 (2014-10-31)
+
+*   Add :name option to counter_cache to support custom names for the function and trigger.
+
 ### 0.2.0 (2014-09-19)
 
 *   Add :value option to counter_cache to support incrementing/decrementing counters by a specific amount.
