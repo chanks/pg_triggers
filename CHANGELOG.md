@@ -1,3 +1,7 @@
+### 0.3.0 (2014-11-07)
+
+*   Add sum_cache trigger.
+
 ### 0.2.1 (2014-10-31)
 
 *   Add :name option to counter_cache to support custom names for the function and trigger.
