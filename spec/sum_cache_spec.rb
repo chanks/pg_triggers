@@ -36,11 +36,14 @@ describe PgTriggers, 'sum_cache' do
     DB[:summed_table].where(id: 2).update(:summed_count => 4).should == 1
     DB[:summer_table].where(id: 1).get(:summer_sum).should == 7
 
+    DB[:summed_table].where(id: 2).update(:summed_count => 6).should == 1
+    DB[:summer_table].where(id: 1).get(:summer_sum).should == 9
+
     DB[:summed_table].where(id: 1).delete.should == 1
-    DB[:summer_table].where(id: 1).get(:summer_sum).should == 4
+    DB[:summer_table].where(id: 1).get(:summer_sum).should == 6
 
     DB[:summed_table].insert(id: 3, summer_id: 1, summed_count: 5)
-    DB[:summer_table].where(id: 1).get(:summer_sum).should == 9
+    DB[:summer_table].where(id: 1).get(:summer_sum).should == 11
   end
 
   it "should work when the tables are related by multiple columns" do
@@ -256,10 +259,13 @@ describe PgTriggers, 'sum_cache' do
     DB[:summed_table].where(id: 2).update(:summed_count => 4).should == 1
     DB[:summer_table].where(id: 1).get(:summer_sum).should == 28
 
+    DB[:summed_table].where(id: 2).update(:summed_count => 6).should == 1
+    DB[:summer_table].where(id: 1).get(:summer_sum).should == 36
+
     DB[:summed_table].where(id: 1).delete.should == 1
-    DB[:summer_table].where(id: 1).get(:summer_sum).should == 16
+    DB[:summer_table].where(id: 1).get(:summer_sum).should == 24
 
     DB[:summed_table].insert(id: 3, summer_id: 1, summed_count: 5)
-    DB[:summer_table].where(id: 1).get(:summer_sum).should == 36
+    DB[:summer_table].where(id: 1).get(:summer_sum).should == 44
   end
 end

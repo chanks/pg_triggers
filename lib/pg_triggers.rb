@@ -78,13 +78,15 @@ module PgTriggers
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'UPDATE') THEN
-                IF (#{changed}) OR ((#{condition['OLD']}) <> (#{condition['NEW']})) OR (OLD.#{summed_column} <> NEW.#{summed_column}) THEN
+                IF (#{changed}) OR ((#{condition['OLD']}) <> (#{condition['NEW']})) THEN
                   IF (#{condition['OLD']}) THEN
                     UPDATE #{main_table} SET #{sum_column} = #{sum_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{where['OLD']};
                   END IF;
                   IF (#{condition['NEW']}) THEN
                     UPDATE #{main_table} SET #{sum_column} = #{sum_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{where['NEW']};
                   END IF;
+                ELSIF (OLD.#{summed_column} <> NEW.#{summed_column}) THEN
+                  UPDATE #{main_table} SET #{sum_column} = #{sum_column} + ((NEW.#{summed_column} - OLD.#{summed_column}) * #{multiplier}) WHERE #{where['NEW']};
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'DELETE') THEN
