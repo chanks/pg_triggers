@@ -1,3 +1,7 @@
+### 0.3.1 (2015-01-20)
+
+*   Fix bug with sum_cache that occurred when a value in a summed column is updated.
+
 ### 0.3.0 (2014-11-07)
 
 *   Add sum_cache trigger.
