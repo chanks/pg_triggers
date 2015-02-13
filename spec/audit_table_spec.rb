@@ -57,7 +57,7 @@ describe PgTriggers, 'auditing' do
       JSON.parse(r4[:changes]).should == {'item_count' => 1}
     end
 
-    it "should always record the values of columns in the :always set" do
+    it "should always record the values of columns in the :include set" do
       DB.run PgTriggers.audit_table(:audited_table, include: [:id, :item_count])
 
       id = DB[:audited_table].insert
