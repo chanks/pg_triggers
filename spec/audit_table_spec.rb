@@ -39,21 +39,25 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
+      r1[:deleted].should == false
       JSON.parse(r1[:changes]).should == {'item_count' => 0}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
+      r2[:deleted].should == false
       JSON.parse(r2[:changes]).should == {'description' => nil}
 
       r3[:id].should == 3
       r3[:table_name].should == 'audited_table'
       r3[:changed_at].should be_within(3).of Time.now
+      r3[:deleted].should == false
       JSON.parse(r3[:changes]).should == {'description' => 'blah'}
 
       r4[:id].should == 4
       r4[:table_name].should == 'audited_table'
       r4[:changed_at].should be_within(3).of Time.now
+      r4[:deleted].should == false
       JSON.parse(r4[:changes]).should == {'item_count' => 1}
     end
 
@@ -164,6 +168,7 @@ describe PgTriggers, 'auditing' do
       record = DB[:audit_table].first
       record[:id].should == 1
       record[:table_name].should == 'audited_table'
+      record[:deleted].should == true
       record[:changed_at].should be_within(3).of Time.now
       JSON.parse(record[:changes]).should == {'id' => 1, 'description' => 'Go home and get your shinebox!', 'item_count' => 5}
     end

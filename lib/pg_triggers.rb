@@ -139,6 +139,7 @@ module PgTriggers
         CREATE TABLE audit_table(
           id bigserial PRIMARY KEY,
           table_name text NOT NULL,
+          deleted boolean NOT NULL,
           changed_at timestamptz NOT NULL DEFAULT now(),
           changes json NOT NULL
         );
@@ -171,12 +172,12 @@ module PgTriggers
                 )
                 #{"OR key IN (#{incl})" if incl};
 
-                INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, changes);
+                INSERT INTO audit_table(table_name, changes, deleted) VALUES (TG_TABLE_NAME::TEXT, changes, false);
               END IF;
 
               RETURN OLD;
             ELSIF (TG_OP = 'DELETE') THEN
-              INSERT INTO audit_table(table_name, changes) VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD));
+              INSERT INTO audit_table(table_name, changes, deleted) VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD), true);
               RETURN OLD;
             END IF;
           END
