@@ -40,25 +40,25 @@ describe PgTriggers, 'auditing' do
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
       r1[:deleted].should == false
-      JSON.parse(r1[:changes]).should == {'item_count' => 0}
+      JSON.parse(r1[:changes_made]).should == {'item_count' => 0}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
       r2[:deleted].should == false
-      JSON.parse(r2[:changes]).should == {'description' => nil}
+      JSON.parse(r2[:changes_made]).should == {'description' => nil}
 
       r3[:id].should == 3
       r3[:table_name].should == 'audited_table'
       r3[:changed_at].should be_within(3).of Time.now
       r3[:deleted].should == false
-      JSON.parse(r3[:changes]).should == {'description' => 'blah'}
+      JSON.parse(r3[:changes_made]).should == {'description' => 'blah'}
 
       r4[:id].should == 4
       r4[:table_name].should == 'audited_table'
       r4[:changed_at].should be_within(3).of Time.now
       r4[:deleted].should == false
-      JSON.parse(r4[:changes]).should == {'item_count' => 1}
+      JSON.parse(r4[:changes_made]).should == {'item_count' => 1}
     end
 
     it "should always record the values of columns in the :include set" do
@@ -74,12 +74,12 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r1[:changes]).should == {'id' => 1, 'item_count' => 0}
+      JSON.parse(r1[:changes_made]).should == {'id' => 1, 'item_count' => 0}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r2[:changes]).should == {'id' => 1, 'item_count' => 1, 'description' => nil}
+      JSON.parse(r2[:changes_made]).should == {'id' => 1, 'item_count' => 1, 'description' => nil}
     end
 
     it "should not record UPDATEs when the only changed columns fall within the :ignore set" do
@@ -97,12 +97,12 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r1[:changes]).should == {'description' => nil}
+      JSON.parse(r1[:changes_made]).should == {'description' => nil}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r2[:changes]).should == {'description' => 'blah'}
+      JSON.parse(r2[:changes_made]).should == {'description' => 'blah'}
     end
 
     it "should handle columns being in both the :include and :ignore sets properly" do
@@ -120,12 +120,12 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r1[:changes]).should == {'description' => nil, 'item_count' => 1}
+      JSON.parse(r1[:changes_made]).should == {'description' => nil, 'item_count' => 1}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r2[:changes]).should == {'description' => 'blah', 'item_count' => 1}
+      JSON.parse(r2[:changes_made]).should == {'description' => 'blah', 'item_count' => 1}
     end
 
     it "should ignore records that are not changed at all" do
@@ -150,12 +150,12 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r1[:changes]).should == {'description' => nil}
+      JSON.parse(r1[:changes_made]).should == {'description' => nil}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r2[:changes]).should == {'description' => 'blah'}
+      JSON.parse(r2[:changes_made]).should == {'description' => 'blah'}
     end
 
     it "should record the entirety of the row when it is deleted" do
@@ -170,7 +170,7 @@ describe PgTriggers, 'auditing' do
       record[:table_name].should == 'audited_table'
       record[:deleted].should == true
       record[:changed_at].should be_within(3).of Time.now
-      JSON.parse(record[:changes]).should == {'id' => 1, 'description' => 'Go home and get your shinebox!', 'item_count' => 5}
+      JSON.parse(record[:changes_made]).should == {'id' => 1, 'description' => 'Go home and get your shinebox!', 'item_count' => 5}
     end
 
     it "should seamlessly replace an existing audit trigger on the same table" do
@@ -209,17 +209,17 @@ describe PgTriggers, 'auditing' do
       r1[:id].should == 1
       r1[:table_name].should == 'audited_table'
       r1[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r1[:changes]).should == {'data' => {}}
+      JSON.parse(r1[:changes_made]).should == {'data' => {}}
 
       r2[:id].should == 2
       r2[:table_name].should == 'audited_table'
       r2[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r2[:changes]).should == {'data' => {'a' => 1}}
+      JSON.parse(r2[:changes_made]).should == {'data' => {'a' => 1}}
 
       r3[:id].should == 3
       r3[:table_name].should == 'audited_table'
       r3[:changed_at].should be_within(3).of Time.now
-      JSON.parse(r3[:changes]).should == {'data' => {'a' => 1, 'b' => 2}}
+      JSON.parse(r3[:changes_made]).should == {'data' => {'a' => 1, 'b' => 2}}
     end
   end
 end

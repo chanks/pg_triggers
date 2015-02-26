@@ -141,7 +141,7 @@ module PgTriggers
           table_name text NOT NULL,
           deleted boolean NOT NULL,
           changed_at timestamptz NOT NULL DEFAULT now(),
-          changes json NOT NULL
+          changes_made json NOT NULL
         );
       SQL
     end
@@ -155,7 +155,7 @@ module PgTriggers
         AS $body$
           DECLARE
             changed_keys text[];
-            changes json;
+            changes_made json;
           BEGIN
             IF (TG_OP = 'UPDATE') THEN
               SELECT array_agg(o.key) INTO changed_keys
@@ -164,7 +164,7 @@ module PgTriggers
               WHERE o.value::text <> n.value::text;
 
               IF NOT (ARRAY[#{ignore}]::text[] @> changed_keys) THEN
-                SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes
+                SELECT ('{' || string_agg('"' || key || '":' || value, ',') || '}')::json INTO changes_made
                 FROM json_each(row_to_json(OLD))
                 WHERE (
                   key = ANY(changed_keys)
@@ -172,12 +172,12 @@ module PgTriggers
                 )
                 #{"OR key IN (#{incl})" if incl};
 
-                INSERT INTO audit_table(table_name, changes, deleted) VALUES (TG_TABLE_NAME::TEXT, changes, false);
+                INSERT INTO audit_table(table_name, changes_made, deleted) VALUES (TG_TABLE_NAME::TEXT, changes_made, false);
               END IF;
 
               RETURN OLD;
             ELSIF (TG_OP = 'DELETE') THEN
-              INSERT INTO audit_table(table_name, changes, deleted) VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD), true);
+              INSERT INTO audit_table(table_name, changes_made, deleted) VALUES (TG_TABLE_NAME::TEXT, row_to_json(OLD), true);
               RETURN OLD;
             END IF;
           END
