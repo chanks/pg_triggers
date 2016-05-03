@@ -5,7 +5,7 @@ module PgTriggers
     def counter_cache(main_table, counter_column, counted_table, relationship, options = {})
       where   = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
       columns = relationship.values
-      changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
+      changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
       value   = (options[:value] || 1).to_i
       name    = options[:name] || "pt_cc_#{main_table}_#{counter_column}"
 
@@ -56,7 +56,7 @@ module PgTriggers
     def sum_cache(main_table, sum_column, summed_table, summed_column, relationship, options = {})
       where      = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
       columns    = relationship.values
-      changed    = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR (OLD.#{c} IS NULL <> NEW.#{c} IS NULL))"}.join(' OR ')
+      changed    = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
       multiplier = (options[:multiplier] || 1).to_i
       name       = options[:name] || "pt_sc_#{main_table}_#{sum_column}"
 
