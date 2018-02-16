@@ -19,7 +19,7 @@ describe PgTriggers, 'updated_at' do
     # The result of now() is the time the transaction began.
     t = nil
     DB.transaction do
-      t = DB.get{now{}}
+      t = DB.get{now.function}
       DB[:updated_at_table].insert(integer_column: 1)
       DB[:updated_at_table].get(:updated_at).should == t
     end
@@ -31,7 +31,7 @@ describe PgTriggers, 'updated_at' do
     t = nil
     id = DB[:updated_at_table].insert(integer_column: 1)
     DB.transaction do
-      t = DB.get{now{}}
+      t = DB.get{now.function}
       DB[:updated_at_table].update integer_column: 2
       DB[:updated_at_table].get(:updated_at).should == t
     end
@@ -43,7 +43,7 @@ describe PgTriggers, 'updated_at' do
     DB[:updated_at_table].insert(integer_column: 1)
     t = nil
     DB.transaction do
-      t = DB.get{now{}}
+      t = DB.get{now.function}
       DB[:updated_at_table].update integer_column: 1
       DB[:updated_at_table].get(:updated_at).should == t
     end
