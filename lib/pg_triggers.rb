@@ -11,8 +11,8 @@ module PgTriggers
 
       condition = proc do |source|
         a = []
-        a << columns.map{|c| "#{source}.#{c} IS NOT NULL"}.join(' AND ')
-        a << options[:where].gsub('ROW.', "#{source}.") if options[:where]
+        a << "(#{columns.map{|c| "(#{source}.#{c} IS NOT NULL)"}.join(' AND ')})"
+        a << "(#{options[:where].gsub('ROW.', "#{source}.")})" if options[:where]
         a.join(' AND ')
       end
 
@@ -62,8 +62,8 @@ module PgTriggers
 
       condition = proc do |source|
         a = []
-        a << columns.map{|c| "#{source}.#{c} IS NOT NULL"}.join(' AND ')
-        a << options[:where].gsub('ROW.', "#{source}.") if options[:where]
+        a << "(#{columns.map{|c| "#{source}.#{c} IS NOT NULL"}.join(' AND ')})"
+        a << "(#{options[:where].gsub('ROW.', "#{source}.")})" if options[:where]
         a.join(' AND ')
       end
 
