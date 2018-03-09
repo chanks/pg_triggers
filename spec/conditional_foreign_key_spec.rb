@@ -31,38 +31,44 @@ describe PgTriggers, 'conditional_foreign_key' do
         )
     end
 
-    it "should not throw an error when updating a parent that has no referring children" do
-      DB[:parents].insert(id1: 1, id2: 2)
-      DB[:parents].where(id1: 1, id2: 2).update(id1: 4).should == 1
+    describe "when modifying a parent" do
+      it "should not throw an error when updating a parent that has no referring children" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:parents].where(id1: 1, id2: 2).update(id1: 4).should == 1
+      end
+
+      it "should not throw an error when deleting a parent that has no referring children" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:parents].where(id1: 1, id2: 2).delete.should == 1
+      end
+
+      it "should throw an error when updating the key of a parent that a child is pointing to" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:children].insert(parent_id1: 1, parent_id2: 2)
+
+        key = [:id1, :id2].sample
+
+        # TODO: Figure out what to raise to make these ForeignKeyConstraint violations.
+        proc{DB[:parents].where(id1: 1, id2: 2).update(key => 3)}.should raise_error(Sequel::DatabaseError, /update in parents violates foreign key constraint/)
+      end
+
+      it "should throw an error when deleting a parent that a child is pointing to" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:children].insert(parent_id1: 1, parent_id2: 2)
+
+        proc{DB[:parents].where(id1: 1, id2: 2).delete}.should raise_error(Sequel::DatabaseError, /delete in parents violates foreign key constraint/)
+      end
     end
 
-    it "should not throw an error when deleting a parent that has no referring children" do
-      DB[:parents].insert(id1: 1, id2: 2)
-      DB[:parents].where(id1: 1, id2: 2).delete.should == 1
+    describe "when modifying a child" do
+      it "should not throw an error when inserting/updating a child whose specified parent exists"
+
+      it "should throw an error when inserting a child whose specified parent doesn't exist"
+
+      it "should throw an error when updating a child's foreign key when the new parent doesn't exist"
+
+      it "should not throw an error when inserting/updating a child with an incomplete foreign key"
     end
-
-    it "should throw an error when updating the key of a parent that a child is pointing to" do
-      DB[:parents].insert(id1: 1, id2: 2)
-      DB[:children].insert(parent_id1: 1, parent_id2: 2)
-
-      key = [:id1, :id2].sample
-
-      # TODO: Figure out what to raise to make these ForeignKeyConstraint violations.
-      proc{DB[:parents].where(id1: 1, id2: 2).update(key => 3)}.should raise_error(Sequel::DatabaseError, /update in parents violates foreign key constraint/)
-    end
-
-    it "should throw an error when deleting a parent that a child is pointing to" do
-      DB[:parents].insert(id1: 1, id2: 2)
-      DB[:children].insert(parent_id1: 1, parent_id2: 2)
-
-      proc{DB[:parents].where(id1: 1, id2: 2).delete}.should raise_error(Sequel::DatabaseError, /delete in parents violates foreign key constraint/)
-    end
-
-    it "should not throw an error when inserting/deleting a child whose specified parent exists"
-
-    it "should throw an error when inserting a child whose specified parent doesn't exist"
-
-    it "should not throw an error when inserting/updating/deleting a child with an incomplete foreign key"
   end
 
   describe "with a parent_condition argument" do
