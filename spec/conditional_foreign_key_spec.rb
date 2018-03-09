@@ -83,17 +83,17 @@ describe PgTriggers, 'conditional_foreign_key' do
 
     describe "when modifying a child" do
       describe "with an insert" do
-        it "should not throw an error when the specified parent exists"
+        it "should not throw an error when the specified parent exists" do
+          DB[:children].where(parent_id1: 1, parent_id2: 3).update(parent_id1: 2, parent_id2: 4).should == 1
+        end
 
         it "should throw an error when the specified parent doesn't exist" do
           proc{DB[:children].insert(id: 2, parent_id1: 1, parent_id2: 4)}.should raise_error(Sequel::DatabaseError, /insert in children violates foreign key constraint/)
         end
 
         it "should not throw an error when the child doesn't have a complete foreign key" do
-          skip "Not yet implemented"
-
-          DB[:children].insert(id: 1, parent_id1: 1)
-          DB[:children].where(id: 1).update(parent_id1: 3)
+          DB[:children].insert(id: 5, parent_id1: 1)
+          DB[:children].where(id: 5).update(parent_id1: 3).should == 1
         end
       end
 
@@ -107,10 +107,8 @@ describe PgTriggers, 'conditional_foreign_key' do
         end
 
         it "should not throw an error when the new child record doesn't have a complete foreign key" do
-          skip "Not yet implemented"
-
-          DB[:children].insert(id: 1, parent_id1: 1)
-          DB[:children].where(id: 1).update(parent_id1: 3)
+          DB[:children].insert(id: 5, parent_id1: 7)
+          DB[:children].where(id: 5).update(parent_id1: 9)
         end
       end
     end

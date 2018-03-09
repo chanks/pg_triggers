@@ -165,19 +165,17 @@ module PgTriggers
       parent_columns = relationship.keys
       child_columns  = relationship.values
 
-      parent_changed, child_changed =
-        [parent_columns, child_columns].map do |columns|
-          columns.map {|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
-        end
+      parent_has_key_values     = parent_columns.map{|c| "(OLD.#{c} IS NOT NULL)"}.join(" AND ")
+      parent_key_values_changed = parent_columns.map{|c| "(OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL))"}.join(" OR ")
+
+      child_has_key_values     = child_columns.map {|c| "(NEW.#{c} IS NOT NULL)"}.join(" AND ")
+      child_key_values_changed = child_columns.map{|c| "(OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL))"}.join(" OR ")
 
       parent_trigger_name ||= "pt_cfk_#{parent_table}_#{parent_columns.join('_')}"
-      child_trigger_name  ||= "pt_cfk_#{child_table}_#{child_columns.join('_')}"
+      child_trigger_name  ||= "pt_cfk_#{child_table }_#{child_columns. join('_')}"
 
-      # TODO: Can save checks if the new rows don't have non-null values in all the id columns.
       parent_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
       child_condition  = proc { |source| relationship.map{|k, v| "#{v} = #{source}.#{k}"}.join(' AND ') }
-
-      # SELECT 1 FROM ONLY #{parent_table} x WHERE pkatt1 = $1 [AND ...] FOR KEY SHARE OF x
 
       <<-SQL
         CREATE OR REPLACE FUNCTION #{parent_trigger_name}() RETURNS trigger
@@ -186,14 +184,12 @@ module PgTriggers
             DECLARE
               result boolean;
             BEGIN
-              IF (TG_OP = 'UPDATE' AND NOT (#{parent_changed})) THEN
-                RETURN NEW;
-              END IF;
+              IF (#{parent_has_key_values}) AND (TG_OP = 'DELETE' OR (#{parent_key_values_changed})) THEN
+                SELECT true INTO result FROM #{child_table} WHERE #{child_condition['OLD']} FOR SHARE OF #{child_table};
 
-              SELECT true INTO result FROM #{child_table} WHERE #{child_condition['OLD']} FOR SHARE OF #{child_table};
-
-              IF FOUND THEN
-                RAISE EXCEPTION '% in #{parent_table} violates foreign key constraint "#{parent_trigger_name}"', lower(TG_OP);
+                IF FOUND THEN
+                  RAISE EXCEPTION '% in #{parent_table} violates foreign key constraint "#{parent_trigger_name}"', lower(TG_OP);
+                END IF;
               END IF;
 
               IF (TG_OP = 'UPDATE') THEN
@@ -216,14 +212,12 @@ module PgTriggers
             DECLARE
               result boolean;
             BEGIN
-              IF (TG_OP = 'UPDATE' AND NOT (#{child_changed})) THEN
-                RETURN NEW;
-              END IF;
+              IF (#{child_has_key_values}) AND (TG_OP = 'INSERT' OR (#{child_key_values_changed})) THEN
+                SELECT true INTO result FROM #{parent_table} WHERE #{parent_condition['NEW']} FOR KEY SHARE OF #{parent_table};
 
-              SELECT true INTO result FROM #{parent_table} WHERE #{parent_condition['NEW']} FOR KEY SHARE OF #{parent_table};
-
-              IF NOT FOUND THEN
-                RAISE EXCEPTION '% in #{child_table} violates foreign key constraint "#{child_trigger_name}"', lower(TG_OP);
+                IF NOT FOUND THEN
+                  RAISE EXCEPTION '% in #{child_table} violates foreign key constraint "#{child_trigger_name}"', lower(TG_OP);
+                END IF;
               END IF;
 
               RETURN NEW;
