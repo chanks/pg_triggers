@@ -2,17 +2,17 @@ require "pg_triggers/version"
 
 module PgTriggers
   class << self
-    def counter_cache(main_table, counter_column, counted_table, relationship, options = {})
-      where   = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
+    def counter_cache(counting_table:, counting_column:, counted_table:, relationship:, increment: 1, name: nil, where: nil)
+      relationship_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
+
       columns = relationship.values
       changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
-      value   = (options[:value] || 1).to_i
-      name    = options[:name] || "pt_cc_#{main_table}_#{counter_column}"
+      name  ||= "pt_cc_#{counting_table}_#{counting_column}"
 
-      condition = proc do |source|
+      row_condition = proc do |source|
         a = []
         a << "(#{columns.map{|c| "(#{source}.#{c} IS NOT NULL)"}.join(' AND ')})"
-        a << "(#{options[:where].gsub('ROW.', "#{source}.")})" if options[:where]
+        a << "(#{where.gsub('ROW.', "#{source}.")})" if where
         a.join(' AND ')
       end
 
@@ -22,23 +22,23 @@ module PgTriggers
           AS $$
             BEGIN
               IF (TG_OP = 'INSERT') THEN
-                IF (#{condition['NEW']}) THEN
-                  UPDATE #{main_table} SET #{counter_column} = #{counter_column} + #{value} WHERE #{where['NEW']};
+                IF (#{row_condition['NEW']}) THEN
+                  UPDATE #{counting_table} SET #{counting_column} = #{counting_column} + #{increment} WHERE #{relationship_condition['NEW']};
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'UPDATE') THEN
-                IF (#{changed}) OR ((#{condition['OLD']}) <> (#{condition['NEW']})) THEN
-                  IF (#{condition['OLD']}) THEN
-                    UPDATE #{main_table} SET #{counter_column} = #{counter_column} - #{value} WHERE #{where['OLD']};
+                IF (#{changed}) OR ((#{row_condition['OLD']}) <> (#{row_condition['NEW']})) THEN
+                  IF (#{row_condition['OLD']}) THEN
+                    UPDATE #{counting_table} SET #{counting_column} = #{counting_column} - #{increment} WHERE #{relationship_condition['OLD']};
                   END IF;
-                  IF (#{condition['NEW']}) THEN
-                    UPDATE #{main_table} SET #{counter_column} = #{counter_column} + #{value} WHERE #{where['NEW']};
+                  IF (#{row_condition['NEW']}) THEN
+                    UPDATE #{counting_table} SET #{counting_column} = #{counting_column} + #{increment} WHERE #{relationship_condition['NEW']};
                   END IF;
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'DELETE') THEN
-                IF (#{condition['OLD']}) THEN
-                  UPDATE #{main_table} SET #{counter_column} = #{counter_column} - #{value} WHERE #{where['OLD']};
+                IF (#{row_condition['OLD']}) THEN
+                  UPDATE #{counting_table} SET #{counting_column} = #{counting_column} - #{increment} WHERE #{relationship_condition['OLD']};
                 END IF;
                 RETURN OLD;
               END IF;

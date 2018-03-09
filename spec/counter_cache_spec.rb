@@ -17,7 +17,13 @@ describe PgTriggers, 'counter_cache' do
       integer :counter_id, null: false
     end
 
-    DB.run PgTriggers.counter_cache :counter_table, :counted_count, :counted_table, {id: :counter_id}
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :counted_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+      )
 
     DB[:counter_table].insert(id: 1)
     DB[:counter_table].insert(id: 2)
@@ -57,7 +63,13 @@ describe PgTriggers, 'counter_cache' do
       integer :counter_id2, null: false
     end
 
-    DB.run PgTriggers.counter_cache :counter_table, :counted_count, :counted_table, {id1: :counter_id1, id2: :counter_id2}
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :counted_count,
+        counted_table: :counted_table,
+        relationship: {id1: :counter_id1, id2: :counter_id2},
+      )
 
     DB[:counter_table].insert(id1: 1, id2: 1)
     DB[:counter_table].insert(id1: 2, id2: 1)
@@ -98,8 +110,21 @@ describe PgTriggers, 'counter_cache' do
       integer :counter_id2
     end
 
-    DB.run PgTriggers.counter_cache :counter_table, :counted1_count, :counted_table, {id1: :counter_id1}
-    DB.run PgTriggers.counter_cache :counter_table, :counted2_count, :counted_table, {id1: :counter_id1, id2: :counter_id2}
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :counted1_count,
+        counted_table: :counted_table,
+        relationship: {id1: :counter_id1},
+      )
+
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :counted2_count,
+        counted_table: :counted_table,
+        relationship: {id1: :counter_id1, id2: :counter_id2},
+      )
 
     DB[:counter_table].insert(id1: 1, id2: 1)
     DB[:counted_table].insert(id: 1, counter_id1: 1, counter_id2: 1)
@@ -144,9 +169,32 @@ describe PgTriggers, 'counter_cache' do
       integer :value
     end
 
-    DB.run PgTriggers.counter_cache :counter_table, :condition_count,       :counted_table, {id: :counter_id}, where: "ROW.condition"
-    DB.run PgTriggers.counter_cache :counter_table, :value_count,           :counted_table, {id: :counter_id}, where: "ROW.value > 5"
-    DB.run PgTriggers.counter_cache :counter_table, :condition_value_count, :counted_table, {id: :counter_id}, where: "ROW.condition AND ROW.value > 5"
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :condition_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+        where: "ROW.condition",
+      )
+
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :value_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+        where: "ROW.value > 5",
+      )
+
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :condition_value_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+        where: "ROW.condition AND ROW.value > 5",
+      )
 
     def values
       DB[:counter_table].where(id: 1).get([:condition_count, :value_count, :condition_value_count])
@@ -186,7 +234,7 @@ describe PgTriggers, 'counter_cache' do
     DB.create_table :counter_table do
       integer :id, null: false
 
-      integer :condition_count,       null: false, default: 0
+      integer :condition_count, null: false, default: 0
     end
 
     DB.create_table :counted_table do
@@ -200,7 +248,13 @@ describe PgTriggers, 'counter_cache' do
       DB[:counter_table].where(id: 1).get(:condition_count)
     end
 
-    DB.run PgTriggers.counter_cache :counter_table, :condition_count, :counted_table, {id: :counter_id}
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :condition_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+      )
 
     DB[:counter_table].insert(id: 1)
 
@@ -213,7 +267,14 @@ describe PgTriggers, 'counter_cache' do
     DB[:counted_table].insert(id: 4, counter_id: 1, condition: false)
     value.should == 4
 
-    DB.run PgTriggers.counter_cache :counter_table, :condition_count, :counted_table, {id: :counter_id}, where: "ROW.condition"
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :condition_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+        where: "ROW.condition",
+      )
 
     DB[:counted_table].insert(id: 5, counter_id: 1, condition: nil)
     value.should == 4
@@ -236,7 +297,14 @@ describe PgTriggers, 'counter_cache' do
       integer :counter_id, null: false
     end
 
-    DB.run PgTriggers.counter_cache :counter_table, :counted_count, :counted_table, {id: :counter_id}, value: 5
+    DB.run \
+      PgTriggers.counter_cache(
+        counting_table: :counter_table,
+        counting_column: :counted_count,
+        counted_table: :counted_table,
+        relationship: {id: :counter_id},
+        increment: 5,
+      )
 
     DB[:counter_table].insert(id: 1)
     DB[:counter_table].where(id: 1).get(:counted_count).should == 0
