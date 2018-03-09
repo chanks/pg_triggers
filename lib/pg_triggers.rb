@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "pg_triggers/version"
 
 module PgTriggers
@@ -149,6 +151,63 @@ module PgTriggers
         CREATE TRIGGER pt_u_#{table}_#{column}
         BEFORE INSERT OR UPDATE ON #{table}
         FOR EACH ROW EXECUTE PROCEDURE pt_u_#{table}_#{column}();
+      SQL
+    end
+
+    def conditional_foreign_key(
+      parent_table:,
+      child_table:,
+      relationship:,
+      parent_trigger_name: nil,
+      child_trigger_name: nil
+    )
+
+      parent_columns = relationship.keys
+      child_columns  = relationship.values
+
+      parent_changed, child_changed =
+        [parent_columns, child_columns].map do |columns|
+          columns.map {|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
+        end
+
+      parent_trigger_name ||= "pt_cfk_#{parent_table}_#{parent_columns.join('_')}"
+      child_trigger_name  ||= "pt_cfk_#{child_table}_#{child_columns.join('_')}"
+
+      parent_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
+      child_condition  = proc { |source| relationship.map{|k, v| "#{v} = #{source}.#{k}"}.join(' AND ') }
+
+      # SELECT 1 FROM ONLY #{parent_table} x WHERE pkatt1 = $1 [AND ...] FOR KEY SHARE OF x
+
+      <<-SQL
+        CREATE OR REPLACE FUNCTION #{parent_trigger_name}() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+            DECLARE
+              result boolean;
+            BEGIN
+              IF (TG_OP = 'UPDATE' AND NOT (#{parent_changed})) THEN
+                RETURN NEW;
+              END IF;
+
+              SELECT true INTO result FROM #{child_table} WHERE #{child_condition['OLD']};
+
+              IF FOUND THEN
+                RAISE EXCEPTION '% in #{parent_table} violates foreign key constraint record "#{parent_trigger_name}"', lower(TG_OP);
+              END IF;
+
+              IF (TG_OP = 'UPDATE') THEN
+                RETURN NEW;
+              ELSE
+                RETURN OLD;
+              END IF;
+            END;
+          $$;
+
+        DROP TRIGGER IF EXISTS #{parent_trigger_name} ON #{parent_table};
+
+        CREATE TRIGGER #{parent_trigger_name}
+        AFTER UPDATE OR DELETE ON #{parent_table}
+        FOR EACH ROW EXECUTE PROCEDURE #{parent_trigger_name}();
       SQL
     end
   end
