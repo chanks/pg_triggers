@@ -2,7 +2,15 @@ require "pg_triggers/version"
 
 module PgTriggers
   class << self
-    def counter_cache(counting_table:, counting_column:, counted_table:, relationship:, increment: 1, name: nil, where: nil)
+    def counter_cache(
+      counting_table:,
+      counting_column:,
+      counted_table:,
+      relationship:,
+      increment: 1,
+      name: nil,
+      where: nil
+    )
       relationship_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
 
       columns = relationship.values
