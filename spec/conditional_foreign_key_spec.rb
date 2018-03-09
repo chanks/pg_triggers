@@ -61,13 +61,37 @@ describe PgTriggers, 'conditional_foreign_key' do
     end
 
     describe "when modifying a child" do
-      it "should not throw an error when inserting/updating a child whose specified parent exists"
+      it "should not throw an error when inserting/updating a child whose specified parent exists" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:parents].insert(id1: 1, id2: 3)
 
-      it "should throw an error when inserting a child whose specified parent doesn't exist"
+        DB[:children].insert(id: 1, parent_id1: 1, parent_id2: 2)
+        DB[:children].where(id: 1).update(parent_id2: 3)
+      end
 
-      it "should throw an error when updating a child's foreign key when the new parent doesn't exist"
+      it "should throw an error when inserting a child whose specified parent doesn't exist" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:parents].insert(id1: 1, id2: 3)
 
-      it "should not throw an error when inserting/updating a child with an incomplete foreign key"
+        proc{DB[:children].insert(id: 1, parent_id1: 1, parent_id2: 4)}.should raise_error(Sequel::DatabaseError, /insert in children violates foreign key constraint/)
+      end
+
+      it "should throw an error when updating a child's foreign key when the new parent doesn't exist" do
+        DB[:parents].insert(id1: 1, id2: 2)
+
+        DB[:children].insert(id: 1, parent_id1: 1, parent_id2: 2)
+        proc{DB[:children].where(id: 1).update(parent_id2: 3)}.should raise_error(Sequel::DatabaseError, /update in children violates foreign key constraint/)
+      end
+
+      it "should not throw an error when inserting/updating a child with an incomplete foreign key" do
+        DB[:parents].insert(id1: 1, id2: 2)
+        DB[:parents].insert(id1: 1, id2: 3)
+
+        skip "Not yet implemented"
+
+        DB[:children].insert(id: 1, parent_id1: 1)
+        DB[:children].where(id: 1).update(parent_id1: 3)
+      end
     end
   end
 

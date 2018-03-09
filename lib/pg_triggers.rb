@@ -173,6 +173,7 @@ module PgTriggers
       parent_trigger_name ||= "pt_cfk_#{parent_table}_#{parent_columns.join('_')}"
       child_trigger_name  ||= "pt_cfk_#{child_table}_#{child_columns.join('_')}"
 
+      # TODO: Can save checks if the new rows don't have non-null values in all the id columns.
       parent_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
       child_condition  = proc { |source| relationship.map{|k, v| "#{v} = #{source}.#{k}"}.join(' AND ') }
 
@@ -189,10 +190,10 @@ module PgTriggers
                 RETURN NEW;
               END IF;
 
-              SELECT true INTO result FROM #{child_table} WHERE #{child_condition['OLD']};
+              SELECT true INTO result FROM #{child_table} WHERE #{child_condition['OLD']} FOR SHARE OF #{child_table};
 
               IF FOUND THEN
-                RAISE EXCEPTION '% in #{parent_table} violates foreign key constraint record "#{parent_trigger_name}"', lower(TG_OP);
+                RAISE EXCEPTION '% in #{parent_table} violates foreign key constraint "#{parent_trigger_name}"', lower(TG_OP);
               END IF;
 
               IF (TG_OP = 'UPDATE') THEN
@@ -208,6 +209,32 @@ module PgTriggers
         CREATE TRIGGER #{parent_trigger_name}
         AFTER UPDATE OR DELETE ON #{parent_table}
         FOR EACH ROW EXECUTE PROCEDURE #{parent_trigger_name}();
+
+        CREATE OR REPLACE FUNCTION #{child_trigger_name}() RETURNS trigger
+          LANGUAGE plpgsql
+          AS $$
+            DECLARE
+              result boolean;
+            BEGIN
+              IF (TG_OP = 'UPDATE' AND NOT (#{child_changed})) THEN
+                RETURN NEW;
+              END IF;
+
+              SELECT true INTO result FROM #{parent_table} WHERE #{parent_condition['NEW']} FOR KEY SHARE OF #{parent_table};
+
+              IF NOT FOUND THEN
+                RAISE EXCEPTION '% in #{child_table} violates foreign key constraint "#{child_trigger_name}"', lower(TG_OP);
+              END IF;
+
+              RETURN NEW;
+            END;
+          $$;
+
+        DROP TRIGGER IF EXISTS #{child_trigger_name} ON #{child_table};
+
+        CREATE TRIGGER #{child_trigger_name}
+        AFTER INSERT OR UPDATE ON #{child_table}
+        FOR EACH ROW EXECUTE PROCEDURE #{child_trigger_name}();
       SQL
     end
   end
