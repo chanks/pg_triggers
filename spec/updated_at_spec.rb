@@ -12,7 +12,11 @@ describe PgTriggers, 'updated_at' do
       timestamptz :updated_at
     end
 
-    DB.run PgTriggers.updated_at :updated_at_table, :updated_at
+    DB.run \
+      PgTriggers.updated_at(
+        table: :updated_at_table,
+        column: :updated_at,
+      )
   end
 
   it "should set the updated_at time to now() when the row is inserted" do

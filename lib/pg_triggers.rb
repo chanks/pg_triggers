@@ -124,7 +124,7 @@ module PgTriggers
       SQL
     end
 
-    def updated_at(table, column)
+    def updated_at(table:, column:)
       <<-SQL
         CREATE OR REPLACE FUNCTION pt_u_#{table}_#{column}() RETURNS trigger
           LANGUAGE plpgsql
