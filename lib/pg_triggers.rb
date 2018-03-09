@@ -61,17 +61,27 @@ module PgTriggers
       SQL
     end
 
-    def sum_cache(main_table, sum_column, summed_table, summed_column, relationship, options = {})
-      where      = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
-      columns    = relationship.values
-      changed    = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
-      multiplier = (options[:multiplier] || 1).to_i
-      name       = options[:name] || "pt_sc_#{main_table}_#{sum_column}"
+    def sum_cache(
+      summing_table:,
+      summing_column:,
+      summed_table:,
+      summed_column:,
+      relationship:,
+      multiplier: 1,
+      name: nil,
+      where: nil
+    )
 
-      condition = proc do |source|
+      relationship_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
+
+      columns = relationship.values
+      changed = columns.map{|c| "((OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL)))"}.join(' OR ')
+      name  ||= "pt_sc_#{summing_table}_#{summing_column}"
+
+      row_condition = proc do |source|
         a = []
         a << "(#{columns.map{|c| "#{source}.#{c} IS NOT NULL"}.join(' AND ')})"
-        a << "(#{options[:where].gsub('ROW.', "#{source}.")})" if options[:where]
+        a << "(#{where.gsub('ROW.', "#{source}.")})" if where
         a.join(' AND ')
       end
 
@@ -81,25 +91,25 @@ module PgTriggers
           AS $$
             BEGIN
               IF (TG_OP = 'INSERT') THEN
-                IF (#{condition['NEW']}) THEN
-                  UPDATE #{main_table} SET #{sum_column} = #{sum_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{where['NEW']};
+                IF (#{row_condition['NEW']}) THEN
+                  UPDATE #{summing_table} SET #{summing_column} = #{summing_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{relationship_condition['NEW']};
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'UPDATE') THEN
-                IF (#{changed}) OR ((#{condition['OLD']}) <> (#{condition['NEW']})) THEN
-                  IF (#{condition['OLD']}) THEN
-                    UPDATE #{main_table} SET #{sum_column} = #{sum_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{where['OLD']};
+                IF (#{changed}) OR ((#{row_condition['OLD']}) <> (#{row_condition['NEW']})) THEN
+                  IF (#{row_condition['OLD']}) THEN
+                    UPDATE #{summing_table} SET #{summing_column} = #{summing_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{relationship_condition['OLD']};
                   END IF;
-                  IF (#{condition['NEW']}) THEN
-                    UPDATE #{main_table} SET #{sum_column} = #{sum_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{where['NEW']};
+                  IF (#{row_condition['NEW']}) THEN
+                    UPDATE #{summing_table} SET #{summing_column} = #{summing_column} + (NEW.#{summed_column} * #{multiplier}) WHERE #{relationship_condition['NEW']};
                   END IF;
                 ELSIF (OLD.#{summed_column} <> NEW.#{summed_column}) THEN
-                  UPDATE #{main_table} SET #{sum_column} = #{sum_column} + ((NEW.#{summed_column} - OLD.#{summed_column}) * #{multiplier}) WHERE #{where['NEW']};
+                  UPDATE #{summing_table} SET #{summing_column} = #{summing_column} + ((NEW.#{summed_column} - OLD.#{summed_column}) * #{multiplier}) WHERE #{relationship_condition['NEW']};
                 END IF;
                 RETURN NEW;
               ELSIF (TG_OP = 'DELETE') THEN
-                IF (#{condition['OLD']}) THEN
-                  UPDATE #{main_table} SET #{sum_column} = #{sum_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{where['OLD']};
+                IF (#{row_condition['OLD']}) THEN
+                  UPDATE #{summing_table} SET #{summing_column} = #{summing_column} - (OLD.#{summed_column} * #{multiplier}) WHERE #{relationship_condition['OLD']};
                 END IF;
                 RETURN OLD;
               END IF;

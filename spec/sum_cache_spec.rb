@@ -18,7 +18,14 @@ describe PgTriggers, 'sum_cache' do
       integer :summed_count, null: false, default: 0
     end
 
-    DB.run PgTriggers.sum_cache :summer_table, :summer_sum, :summed_table, :summed_count, {id: :summer_id}
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :summer_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+      )
 
     DB[:summer_table].insert(id: 1)
     DB[:summer_table].insert(id: 2)
@@ -60,7 +67,14 @@ describe PgTriggers, 'sum_cache' do
       integer :summed_count, null: false, default: 0
     end
 
-    DB.run PgTriggers.sum_cache :summer_table, :summer_sum, :summed_table, :summed_count, {id1: :summer_id1, id2: :summer_id2}
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :summer_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id1: :summer_id1, id2: :summer_id2},
+      )
 
     DB[:summer_table].insert(id1: 1, id2: 1)
     DB[:summer_table].insert(id1: 2, id2: 1)
@@ -102,8 +116,23 @@ describe PgTriggers, 'sum_cache' do
       integer :summed_count, null: false, default: 0
     end
 
-    DB.run PgTriggers.sum_cache :summer_table, :summed1_sum, :summed_table, :summed_count, {id1: :summer_id1}
-    DB.run PgTriggers.sum_cache :summer_table, :summed2_sum, :summed_table, :summed_count, {id1: :summer_id1, id2: :summer_id2}
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :summed1_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id1: :summer_id1},
+      )
+
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :summed2_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id1: :summer_id1, id2: :summer_id2},
+      )
 
     DB[:summer_table].insert(id1: 1, id2: 1)
     DB[:summed_table].insert(id: 1, summer_id1: 1, summer_id2: 1, summed_count: 1)
@@ -149,9 +178,35 @@ describe PgTriggers, 'sum_cache' do
       integer :value
     end
 
-    DB.run PgTriggers.sum_cache :summer_table, :condition_sum,       :summed_table, :summed_count, {id: :summer_id}, where: "ROW.condition"
-    DB.run PgTriggers.sum_cache :summer_table, :value_sum,           :summed_table, :summed_count, {id: :summer_id}, where: "ROW.value > 5"
-    DB.run PgTriggers.sum_cache :summer_table, :condition_value_sum, :summed_table, :summed_count, {id: :summer_id}, where: "ROW.condition AND ROW.value > 5"
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :condition_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+        where: "ROW.condition",
+      )
+
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :value_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+        where: "ROW.value > 5",
+      )
+
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :condition_value_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+        where: "ROW.condition AND ROW.value > 5",
+      )
 
     def values
       DB[:summer_table].where(id: 1).get([:condition_sum, :value_sum, :condition_value_sum])
@@ -204,7 +259,14 @@ describe PgTriggers, 'sum_cache' do
       DB[:summer_table].where(id: 1).get(:condition_sum)
     end
 
-    DB.run PgTriggers.sum_cache :summer_table, :condition_sum, :summed_table, :summed_count, {id: :summer_id}
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :condition_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+      )
 
     DB[:summer_table].insert(id: 1)
 
@@ -217,7 +279,15 @@ describe PgTriggers, 'sum_cache' do
     DB[:summed_table].insert(id: 4, summer_id: 1, summed_count: 8, condition: false)
     value.should == 15
 
-    DB.run PgTriggers.sum_cache :summer_table, :condition_sum, :summed_table, :summed_count, {id: :summer_id}, where: "ROW.condition"
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :condition_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+        where: "ROW.condition",
+      )
 
     DB[:summed_table].insert(id: 5, summer_id: 1, summed_count: 16, condition: nil)
     value.should == 15
@@ -241,7 +311,15 @@ describe PgTriggers, 'sum_cache' do
       integer :summed_count, null: false, default: 0
     end
 
-    DB.run PgTriggers.sum_cache :summer_table, :summer_sum, :summed_table, :summed_count, {id: :summer_id}, multiplier: 4
+    DB.run \
+      PgTriggers.sum_cache(
+        summing_table: :summer_table,
+        summing_column: :summer_sum,
+        summed_table: :summed_table,
+        summed_column: :summed_count,
+        relationship: {id: :summer_id},
+        multiplier: 4,
+      )
 
     DB[:summer_table].insert(id: 1)
     DB[:summer_table].insert(id: 2)
