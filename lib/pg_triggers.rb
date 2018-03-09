@@ -159,23 +159,39 @@ module PgTriggers
       child_table:,
       relationship:,
       parent_trigger_name: nil,
-      child_trigger_name: nil
+      child_trigger_name: nil,
+      parent_condition: nil
     )
 
       parent_columns = relationship.keys
       child_columns  = relationship.values
 
-      parent_has_key_values     = parent_columns.map{|c| "(OLD.#{c} IS NOT NULL)"}.join(" AND ")
-      parent_key_values_changed = parent_columns.map{|c| "(OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL))"}.join(" OR ")
+      parent_has_key_values     = wrap(parent_columns.map{|c| "(OLD.#{c} IS NOT NULL)"}.join(" AND "))
+      parent_key_values_changed = wrap(parent_columns.map{|c| "(OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL))"}.join(" OR "))
 
-      child_has_key_values     = child_columns.map {|c| "(NEW.#{c} IS NOT NULL)"}.join(" AND ")
-      child_key_values_changed = child_columns.map{|c| "(OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL))"}.join(" OR ")
+      need_to_check_children =
+        wrap(
+          if parent_condition.nil?
+            "#{parent_has_key_values} AND (TG_OP = 'DELETE' OR #{parent_key_values_changed})"
+          else
+            parent_condition_callable = proc { |source| wrap(parent_condition.gsub("ROW.", "#{source}.")) }
+            [
+              "(TG_OP = 'UPDATE') AND #{parent_has_key_values} AND (#{parent_key_values_changed} OR (#{parent_condition_callable['OLD']} AND NOT (#{parent_condition_callable['NEW']})))",
+              "(TG_OP = 'DELETE') AND #{parent_has_key_values} AND #{parent_condition_callable['OLD']}"
+            ].map{|c| wrap(c)}.join(" OR ")
+          end
+        )
+
+      child_has_key_values     = wrap(child_columns.map {|c| "(NEW.#{c} IS NOT NULL)"}.join(" AND "))
+      child_key_values_changed = wrap(child_columns.map{|c| "(OLD.#{c} <> NEW.#{c}) OR ((OLD.#{c} IS NULL) <> (NEW.#{c} IS NULL))"}.join(" OR "))
+
+      need_to_check_parent = wrap("#{child_has_key_values} AND (TG_OP = 'INSERT' OR #{child_key_values_changed})")
 
       parent_trigger_name ||= "pt_cfk_#{parent_table}_#{parent_columns.join('_')}"
       child_trigger_name  ||= "pt_cfk_#{child_table }_#{child_columns. join('_')}"
 
-      parent_condition = proc { |source| relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ') }
-      child_condition  = proc { |source| relationship.map{|k, v| "#{v} = #{source}.#{k}"}.join(' AND ') }
+      parent_relationship_condition = proc { |source| wrap(relationship.map{|k, v| "#{k} = #{source}.#{v}"}.join(' AND ')) }
+      child_relationship_condition  = proc { |source| wrap(relationship.map{|k, v| "#{v} = #{source}.#{k}"}.join(' AND ')) }
 
       <<-SQL
         CREATE OR REPLACE FUNCTION #{parent_trigger_name}() RETURNS trigger
@@ -184,8 +200,8 @@ module PgTriggers
             DECLARE
               result boolean;
             BEGIN
-              IF (#{parent_has_key_values}) AND (TG_OP = 'DELETE' OR (#{parent_key_values_changed})) THEN
-                SELECT true INTO result FROM #{child_table} WHERE #{child_condition['OLD']} FOR SHARE OF #{child_table};
+              IF #{need_to_check_children} THEN
+                SELECT true INTO result FROM #{child_table} WHERE #{child_relationship_condition['OLD']} FOR SHARE OF #{child_table};
 
                 IF FOUND THEN
                   RAISE EXCEPTION '% in #{parent_table} violates foreign key constraint "#{parent_trigger_name}"', lower(TG_OP);
@@ -212,8 +228,8 @@ module PgTriggers
             DECLARE
               result boolean;
             BEGIN
-              IF (#{child_has_key_values}) AND (TG_OP = 'INSERT' OR (#{child_key_values_changed})) THEN
-                SELECT true INTO result FROM #{parent_table} WHERE #{parent_condition['NEW']} FOR KEY SHARE OF #{parent_table};
+              IF #{need_to_check_parent} THEN
+                SELECT true INTO result FROM #{parent_table} WHERE #{parent_relationship_condition['NEW']} FOR KEY SHARE OF #{parent_table};
 
                 IF NOT FOUND THEN
                   RAISE EXCEPTION '% in #{child_table} violates foreign key constraint "#{child_trigger_name}"', lower(TG_OP);
@@ -230,6 +246,12 @@ module PgTriggers
         AFTER INSERT OR UPDATE ON #{child_table}
         FOR EACH ROW EXECUTE PROCEDURE #{child_trigger_name}();
       SQL
+    end
+
+    private
+
+    def wrap(s)
+      "(#{s})"
     end
   end
 end
