@@ -43,12 +43,12 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if the array has more than one dimension" do
         proc{DB[:referencing_table].insert(referencing_column: '{{1},{2},{3}}')}.
-          should raise_error(Sequel::DatabaseError, /Foreign key array referencing_column has more than 1 dimension/)
+          should raise_error(Sequel::DatabaseError, /Foreign key array column "referencing_table"\."referencing_column" has more than 1 dimension/)
       end
 
       it "should fail if the array has duplicate entries" do
         proc{DB[:referencing_table].insert(referencing_column: '{2,1,2}')}.
-          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array referencing_column/)
+          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array column "referencing_table"\."referencing_column"/)
       end
 
       it "should succeed if all the array values exist in the referenced table" do
@@ -57,7 +57,7 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if any of the array values do not exist in the referenced table" do
         proc{DB[:referencing_table].insert(referencing_column: '{1,2,4}')}.
-          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \(referencing_column\) not in referenced column \(referenced_column\)/)
+          should raise_error(Sequel::DatabaseError, /Entry in foreign key array "referencing_table"\."referencing_column" not found in "referenced_table"\."referenced_column"/)
       end
     end
 
@@ -76,12 +76,12 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if the array has more than one dimension" do
         proc{DB[:referencing_table].where(prefix_column: 1).update(referencing_column: '{{1},{2},{3}}')}.
-          should raise_error(Sequel::DatabaseError, /Foreign key array referencing_column has more than 1 dimension/)
+          should raise_error(Sequel::DatabaseError, /Foreign key array column "referencing_table"\."referencing_column" has more than 1 dimension/)
       end
 
       it "should fail if the array has duplicate entries" do
         proc{DB[:referencing_table].where(prefix_column: 1).update(referencing_column: '{2,1,2}')}.
-          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array referencing_column/)
+          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array column "referencing_table"\."referencing_column"/)
       end
 
       it "should succeed if all the array values exist in the referenced table" do
@@ -94,7 +94,7 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if any of the array values do not exist in the referenced table" do
         proc{DB[:referencing_table].where(prefix_column: 1).update(referencing_column: '{1,2,4}')}.
-          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \(referencing_column\) not in referenced column \(referenced_column\)/)
+          should raise_error(Sequel::DatabaseError, /Entry in foreign key array "referencing_table"\."referencing_column" not found in "referenced_table"\."referenced_column"/)
       end
     end
 
@@ -131,7 +131,7 @@ describe PgTriggers, 'array_foreign_key' do
 
         it "should fail if the referenced column is still referenced" do
           proc{DB[:referenced_table].where(prefix_column: 1, referenced_column: 1).update(referenced_column: 4)}.
-            should raise_error(Sequel::DatabaseError, /Entry in referenced column \(referenced_column\) still in foreign key array \(referencing_column\)/)
+            should raise_error(Sequel::DatabaseError, /Entry in referenced column "referenced_table"\."referenced_column" still in foreign key array "referencing_table"\."referencing_column"/)
         end
       end
 
@@ -143,7 +143,7 @@ describe PgTriggers, 'array_foreign_key' do
 
         it "should fail if the referenced column is still referenced" do
           proc{DB[:referenced_table].where(prefix_column: 1, referenced_column: 1).delete}.
-            should raise_error(Sequel::DatabaseError, /Entry in referenced column \(referenced_column\) still in foreign key array \(referencing_column\)/)
+            should raise_error(Sequel::DatabaseError, /Entry in referenced column "referenced_table"\."referenced_column" still in foreign key array "referencing_table"\."referencing_column"/)
         end
       end
     end
@@ -177,12 +177,12 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if the array has more than one dimension" do
         proc{DB[:referencing_table].insert(prefix_column: 1, referencing_column: '{{1},{2},{3}}')}.
-          should raise_error(Sequel::DatabaseError, /Foreign key array referencing_column has more than 1 dimension/)
+          should raise_error(Sequel::DatabaseError, /Foreign key array column "referencing_table"\."referencing_column" has more than 1 dimension/)
       end
 
       it "should fail if the array has duplicate entries" do
         proc{DB[:referencing_table].insert(prefix_column: 1, referencing_column: '{2,1,2}')}.
-          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array referencing_column/)
+          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array column "referencing_table"\."referencing_column"/)
       end
 
       it "should succeed if all the array values exist in the referenced table" do
@@ -191,12 +191,12 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if any of the array values do not exist in the referenced table" do
         proc{DB[:referencing_table].insert(prefix_column: 1, referencing_column: '{1,2,4}')}.
-          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \(prefix_column, referencing_column\) not in referenced column \(prefix_column, referenced_column\)/)
+          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\) not found in \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\)/)
       end
 
       it "should fail if the prefix columns do not exist in the referenced table" do
         proc{DB[:referencing_table].insert(prefix_column: 2, referencing_column: '{1,2,4}')}.
-          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \(prefix_column, referencing_column\) not in referenced column \(prefix_column, referenced_column\)/)
+          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\) not found in \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\)/)
       end
     end
 
@@ -219,12 +219,12 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if the array has more than one dimension" do
         proc{DB[:referencing_table].where(prefix_column: 1).update(referencing_column: '{{1},{2},{3}}')}.
-          should raise_error(Sequel::DatabaseError, /Foreign key array referencing_column has more than 1 dimension/)
+          should raise_error(Sequel::DatabaseError, /Foreign key array column "referencing_table"\."referencing_column" has more than 1 dimension/)
       end
 
       it "should fail if the array has duplicate entries" do
         proc{DB[:referencing_table].where(prefix_column: 1).update(referencing_column: '{2,1,2}')}.
-          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array referencing_column/)
+          should raise_error(Sequel::DatabaseError, /Duplicate entry in foreign key array column "referencing_table"\."referencing_column"/)
       end
 
       it "should succeed if all the array values exist in the referenced table" do
@@ -248,14 +248,14 @@ describe PgTriggers, 'array_foreign_key' do
 
       it "should fail if any of the array values do not exist in the referenced table" do
         proc{DB[:referencing_table].where(prefix_column: 1).update(referencing_column: '{1,2,4}')}.
-          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \(prefix_column, referencing_column\) not in referenced column \(prefix_column, referenced_column\)/)
+          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\) not found in \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\)/)
       end
 
       it "should fail if the prefix column for the given array values doesn't exist in the referenced table" do
         DB[:referenced_table].insert(prefix_column: 2, referenced_column: 1)
         DB[:referenced_table].insert(prefix_column: 2, referenced_column: 2)
         proc{DB[:referencing_table].where(prefix_column: 1).update(prefix_column: 2)}.
-          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \(prefix_column, referencing_column\) not in referenced column \(prefix_column, referenced_column\)/)
+          should raise_error(Sequel::DatabaseError, /Entry in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\) not found in \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\)/)
       end
     end
 
@@ -305,12 +305,12 @@ describe PgTriggers, 'array_foreign_key' do
 
         it "should fail if the referenced column is still referenced when it is changed" do
           proc{DB[:referenced_table].where(prefix_column: 1, referenced_column: 1).update(referenced_column: 4)}.
-            should raise_error(Sequel::DatabaseError, /Entry in referenced column \(prefix_column, referenced_column\) still in foreign key array \(prefix_column, referencing_column\)/)
+            should raise_error(Sequel::DatabaseError, /Entry in referenced column \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\) still in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\)/)
         end
 
         it "should fail if the prefix column is still referenced when it is changed" do
           proc{DB[:referenced_table].where(prefix_column: 1, referenced_column: 1).update(prefix_column: 4)}.
-            should raise_error(Sequel::DatabaseError, /Entry in referenced column \(prefix_column, referenced_column\) still in foreign key array \(prefix_column, referencing_column\)/)
+            should raise_error(Sequel::DatabaseError, /Entry in referenced column \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\) still in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\)/)
         end
       end
 
@@ -331,7 +331,7 @@ describe PgTriggers, 'array_foreign_key' do
 
         it "should fail if the given column is still referenced" do
           proc{DB[:referenced_table].where(prefix_column: 1, referenced_column: 1).delete}.
-            should raise_error(Sequel::DatabaseError, /Entry in referenced column \(prefix_column, referenced_column\) still in foreign key array \(prefix_column, referencing_column\)/)
+            should raise_error(Sequel::DatabaseError, /Entry in referenced column \("referenced_table"\."prefix_column", "referenced_table"\."referenced_column"\) still in foreign key array \("referencing_table"\."prefix_column", "referencing_table"\."referencing_column"\)/)
         end
       end
     end

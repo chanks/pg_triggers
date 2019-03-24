@@ -164,8 +164,12 @@ module PgTriggers
       *_referencing_prefix_columns, referencing_column = referencing_key
       *_referenced_prefix_columns,  referenced_column  = referenced_key
 
-      referencing_column_list = "(#{referencing_key.join(", ")})"
-      referenced_column_list  = "(#{referenced_key.join(", ")})"
+      referencing_column_display = %("#{referencing_table}"."#{referencing_column}")
+
+      referencing_key_display = referencing_key.map{|k| %("#{referencing_table}"."#{k}")}
+      referenced_key_display  = referenced_key. map{|k| %("#{referenced_table}"."#{k}")}
+      referencing_key_display = referencing_key_display.length > 1 ? "(#{referencing_key_display.join(", ")})" : referencing_key_display.first
+      referenced_key_display  = referenced_key_display.length  > 1 ? "(#{referenced_key_display.join(", ")})"  : referenced_key_display.first
 
       referencing_key_unchanged = referencing_key.map{|k| "(NEW.#{k} IS NOT DISTINCT FROM OLD.#{k})"}.join(" AND ")
       referenced_key_unchanged  = referenced_key. map{|k| "(NEW.#{k} IS NOT DISTINCT FROM OLD.#{k})"}.join(" AND ")
@@ -212,20 +216,20 @@ module PgTriggers
                 END IF;
 
                 IF temp_count1 IS DISTINCT FROM 1 THEN
-                  RAISE EXCEPTION 'Foreign key array #{referencing_column} has more than 1 dimension: %, dimensions: %', arr, temp_count1;
+                  RAISE EXCEPTION 'Foreign key array column #{referencing_column_display} has more than 1 dimension: %, dimensions: %', arr, temp_count1;
                 END IF;
 
                 SELECT count(*) INTO temp_count1 FROM unnest(arr);
                 SELECT count(*) INTO temp_count2 FROM (SELECT DISTINCT * FROM unnest(arr)) AS t;
                 IF temp_count1 IS DISTINCT FROM temp_count2 THEN
-                  RAISE EXCEPTION 'Duplicate entry in foreign key array #{referencing_column}: %', arr;
+                  RAISE EXCEPTION 'Duplicate entry in foreign key array column #{referencing_column_display}: %', arr;
                 END IF;
               END IF;
 
               SELECT COUNT(*) INTO temp_count1 FROM #{referenced_table} WHERE (#{referencing_change_query});
               temp_count2 := array_length(arr, 1);
               IF temp_count1 IS DISTINCT FROM temp_count2 THEN
-                RAISE EXCEPTION 'Entry in foreign key array #{referencing_column_list} not in referenced column #{referenced_column_list}: %', arr;
+                RAISE EXCEPTION 'Entry in foreign key array #{referencing_key_display} not found in #{referenced_key_display}: %', arr;
               END IF;
 
               RETURN NULL;
@@ -248,7 +252,7 @@ module PgTriggers
 
               PERFORM true FROM #{referencing_table} WHERE (#{referenced_change_query});
               IF FOUND THEN
-                RAISE EXCEPTION 'Entry in referenced column #{referenced_column_list} still in foreign key array #{referencing_column_list}: %', OLD.#{referenced_column};
+                RAISE EXCEPTION 'Entry in referenced column #{referenced_key_display} still in foreign key array #{referencing_key_display}: %', OLD.#{referenced_column};
               END IF;
 
               RETURN NULL;
