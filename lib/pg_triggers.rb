@@ -159,10 +159,10 @@ module PgTriggers
       raise "Mismatched referencing and referenced keys!" unless referencing_key.length == referenced_key.length
 
       referencing_function_name = "pt_afka_#{referencing_table}_#{referencing_key.join('_')}".slice(0...63)
-      referenced_function_name  = "pt_afkb_#{referenced_table}_#{referenced_key.join('_')}".slice(0...63)
+      referenced_function_name  = "pt_afkb_#{referencing_table}_#{referencing_key.join('_')}".slice(0...63)
 
-      *referencing_prefix_columns, referencing_column = referencing_key
-      *referenced_prefix_columns,  referenced_column  = referenced_key
+      *_referencing_prefix_columns, referencing_column = referencing_key
+      *_referenced_prefix_columns,  referenced_column  = referenced_key
 
       referencing_column_list = "(#{referencing_key.join(", ")})"
       referenced_column_list  = "(#{referenced_key.join(", ")})"
@@ -171,7 +171,7 @@ module PgTriggers
       referenced_key_unchanged  = referenced_key. map{|k| "(NEW.#{k} IS NOT DISTINCT FROM OLD.#{k})"}.join(" AND ")
 
       referencing_key_missing = referencing_key.map{|k| "(NEW.#{k} IS NULL)"}.join(" OR ")
-      referenced_key_present  = referenced_key.map {|k| "(OLD.#{k} IS NOT NULL)"}.join(" AND ")
+      referenced_key_missing  = referenced_key.map {|k| "(OLD.#{k} IS NULL)"}.join(" OR ")
 
       referencing_change_query = referencing_key.zip(referenced_key).map do |c1, c2|
         if c1 == referencing_column
@@ -198,10 +198,8 @@ module PgTriggers
               temp_count1 int;
               temp_count2 int;
             BEGIN
-              IF (TG_OP = 'DELETE') THEN
-                RETURN OLD;
-              ELSIF ((TG_OP = 'UPDATE' AND #{referencing_key_unchanged}) OR (#{referencing_key_missing})) THEN
-                RETURN NEW;
+              IF ((TG_OP = 'UPDATE' AND #{referencing_key_unchanged}) OR (#{referencing_key_missing})) THEN
+                RETURN NULL;
               END IF;
 
               arr := NEW.#{referencing_column};
@@ -210,7 +208,7 @@ module PgTriggers
               IF (TG_OP = 'INSERT' OR NEW.#{referencing_column} IS DISTINCT FROM OLD.#{referencing_column}) THEN
                 temp_count1 := array_ndims(arr);
                 IF arr IS NULL OR temp_count1 IS NULL THEN
-                  RETURN NEW;
+                  RETURN NULL;
                 END IF;
 
                 IF temp_count1 IS DISTINCT FROM 1 THEN
@@ -230,53 +228,39 @@ module PgTriggers
                 RAISE EXCEPTION 'Entry in foreign key array #{referencing_column_list} not in referenced column #{referenced_column_list}: %', arr;
               END IF;
 
-              RETURN NEW;
+              RETURN NULL;
             END;
           $$;
 
         DROP TRIGGER IF EXISTS #{referencing_function_name} ON #{referencing_table};
 
         CREATE TRIGGER #{referencing_function_name}
-        AFTER INSERT OR UPDATE OR DELETE ON #{referencing_table}
+        AFTER INSERT OR UPDATE ON #{referencing_table}
         FOR EACH ROW EXECUTE PROCEDURE #{referencing_function_name}();
 
         CREATE OR REPLACE FUNCTION #{referenced_function_name}() RETURNS trigger
           LANGUAGE plpgsql
           AS $$
-            DECLARE
-              val #{referenced_table}.#{referenced_column}%TYPE;
-              temp_count int;
             BEGIN
-              IF (TG_OP = 'INSERT') THEN
-                RETURN NEW;
-              ELSIF (TG_OP = 'UPDATE' AND #{referenced_key_unchanged}) THEN
-                RETURN NEW;
+              IF ((TG_OP = 'UPDATE' AND #{referenced_key_unchanged}) OR (#{referenced_key_missing})) THEN
+                RETURN NULL;
               END IF;
 
-              IF (#{referenced_key_present}) THEN
-                SELECT COUNT(*) INTO temp_count FROM #{referencing_table} WHERE (#{referenced_change_query});
-                IF temp_count IS DISTINCT FROM 0 THEN
-                  val := OLD.#{referenced_column};
-                  RAISE EXCEPTION 'Entry in referenced column #{referenced_column_list} still in foreign key array #{referencing_column_list}: %, count: %', val, temp_count;
-                END IF;
+              PERFORM true FROM #{referencing_table} WHERE (#{referenced_change_query});
+              IF FOUND THEN
+                RAISE EXCEPTION 'Entry in referenced column #{referenced_column_list} still in foreign key array #{referencing_column_list}: %', OLD.#{referenced_column};
               END IF;
 
-              IF (TG_OP = 'DELETE') THEN
-                RETURN OLD;
-              ELSE
-                RETURN NEW;
-              END IF;
+              RETURN NULL;
             END;
           $$;
 
         DROP TRIGGER IF EXISTS #{referenced_function_name} ON #{referenced_table};
 
         CREATE TRIGGER #{referenced_function_name}
-        AFTER INSERT OR UPDATE OR DELETE ON #{referenced_table}
+        AFTER UPDATE OR DELETE ON #{referenced_table}
         FOR EACH ROW EXECUTE PROCEDURE #{referenced_function_name}();
       SQL
     end
-
-
   end
 end
